@@ -185,6 +185,9 @@ int main(){
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
+                // Assign player to a room
+                assignToRoom(connfd, name);
+
             }
 
         }
