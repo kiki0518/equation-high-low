@@ -1,11 +1,9 @@
 /*
-
 Main server logic that handles:
 Client connections.
 Game phases (e.g., preparation, gameplay, result broadcast).
 Communication with clients over TCP sockets.
 Integrates game logic and manages player state.
-
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,9 +101,7 @@ int main(){
                 snprintf(sendline, sizeof(sendline), "You may now play with computer or wait for other users.\n", total_id);
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
-
             }
-
         }
     }
 }
