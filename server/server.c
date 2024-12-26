@@ -11,7 +11,27 @@ Integrates game logic and manages player state.
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include "unpv13e/lib/unp.h"
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+// Room structure to manage multiple rooms
+#define MAX_PLAYERS 100
+#define MAX_ROOMS 10
+#define ROOM_CAPACITY 5
+#define MIN_START_PLAYERS 3
 // unpv13e/lib/unp.h
+
+typedef struct {
+    int player_count;
+    int connfd[MAX_PLAYERS];
+    char name[MAX_PLAYERS][100];
+    int room_id;
+    int host_id; // The player ID of the room host
+} Room;
+
+Room rooms[MAX_ROOMS]; // Manage multiple rooms
+int room_count = 0; // Number of active rooms
 
 void sig_chld(int signo){
     pid_t pid;
@@ -22,8 +42,71 @@ void sig_chld(int signo){
     return;
 }
 
-void letPlay(int id[], char name[][], int connfd[]){
-    
+void letPlay(Room* room) {
+    char sendline[MAXLINE];
+    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
+    for (int i = 0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+    }
+    // Implement the game logic here...
+    sleep(5); // Simulate game duration
+    snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
+    for (int i = 0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+        Close(room->connfd[i]);
+    }
+    room->player_count = 0; // Reset the room
+}
+
+int assignToRoom(int connfd, char* name) {
+    for (int i = 0; i < room_count; ++i) {
+        if (rooms[i].player_count < ROOM_CAPACITY) {
+            int player_id = rooms[i].player_count;
+            rooms[i].connfd[player_id] = connfd;
+            strcpy(rooms[i].name[player_id], name);
+            rooms[i].player_count++;
+
+            char sendline[MAXLINE];
+            snprintf(sendline, sizeof(sendline), "You are added to Room %d as player #%d.\n", rooms[i].room_id, player_id + 1);
+            Writen(connfd, sendline, strlen(sendline));
+
+            // Check if game should start
+            if (rooms[i].player_count == MIN_START_PLAYERS) {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    letPlay(&rooms[i]);
+                    exit(0);
+                }
+            } else if (rooms[i].player_count == ROOM_CAPACITY) {
+                letPlay(&rooms[i]);
+            }
+
+            return rooms[i].room_id;
+        }
+    }
+
+    // Create a new room if no room is available
+    if (room_count < MAX_ROOMS) {
+        Room* new_room = &rooms[room_count++];
+        new_room->room_id = room_count;
+        new_room->player_count = 1;
+        new_room->connfd[0] = connfd;
+        strcpy(new_room->name[0], name);
+        new_room->host_id = 0; // First player becomes the host
+
+        char sendline[MAXLINE];
+        snprintf(sendline, sizeof(sendline), "You are the host of Room %d.\n", new_room->room_id);
+        Writen(connfd, sendline, strlen(sendline));
+
+        return new_room->room_id;
+    }
+
+    // No room available
+    char sendline[MAXLINE];
+    snprintf(sendline, sizeof(sendline), "Sorry, no rooms available.\n");
+    Writen(connfd, sendline, strlen(sendline));
+    Close(connfd);
+    return -1;
 }
 
 int main(){
@@ -101,7 +184,9 @@ int main(){
                 snprintf(sendline, sizeof(sendline), "You may now play with computer or wait for other users.\n", total_id);
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
+
             }
+
         }
     }
 }
