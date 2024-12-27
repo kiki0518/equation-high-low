@@ -21,12 +21,13 @@ struct Player {
     int id;
     char name[40];
     struct Card card[4];
-    char op[3];
-    bool has_root;
+    char op[4];
     int chips;
-    char expression[BUFFER_SIZE];
-    int bet;
-    char bet_type;  // 'B' for high, 'S' for low
+    char expression_high[BUFFER_SIZE]; // For "high" bet expression
+    char expression_low[BUFFER_SIZE];  // For "low" bet expression
+    int bet_high;    // Bet amount for "high"
+    int bet_low;     // Bet amount for "low"
+    bool folded;     // Indicates if the player has folded
 };
 
 struct Card deck_num[44];
@@ -75,37 +76,54 @@ void deal_cards(struct Player *player) {
     for (int i = 0; i < 3; i++) {
         player->op[i] = deck_op[rand() % 4];
     }
-    player->has_root = (rand() % 5 == 0);
+    if (rand() % 5 == 0) {
+        player->op[3] = deck_op[4];
+    } 
 }
-
 void handle_betting_phase(struct Player *players, int num_players, int *main_pot) {
     int max_bet = 0;
     for (int i = 0; i < num_players; i++) {
+        if (players[i].folded) continue;
+
         char buffer[BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer), "Player %d, it's your turn to bet. Max bet: %d, your chips: %d.\n",
                  players[i].id, max_bet, players[i].chips);
         write(clientFd[i], buffer, strlen(buffer));
 
-        int bet = 0;
         read(clientFd[i], buffer, sizeof(buffer));
-        sscanf(buffer, "%d %c", &bet, &players[i].bet_type);
 
-        if (bet < max_bet && bet != players[i].chips) {
-            snprintf(buffer, sizeof(buffer), "Your bet must be at least %d or you must go all-in.\n", max_bet);
+        if (strncmp(buffer, "fold", 4) == 0) {
+            players[i].folded = true;
+            snprintf(buffer, sizeof(buffer), "Player %d folded. You are out of this round.\n", players[i].id);
+            write(clientFd[i], buffer, strlen(buffer));
+            continue;
+        }
+
+        int bet_high = 0, bet_low = 0;
+        sscanf(buffer, "%d %d", &bet_high, &bet_low);
+
+        if (bet_high < max_bet && bet_high != players[i].chips) {
+            snprintf(buffer, sizeof(buffer), "Invalid high bet! You must bet more than %d or go All-In.\n", max_bet);
             write(clientFd[i], buffer, strlen(buffer));
             i--;
             continue;
         }
 
-        if (bet > players[i].chips) bet = players[i].chips;
+        if (bet_high > players[i].chips) bet_high = players[i].chips;
 
-        players[i].chips -= bet;
-        players[i].bet = bet;
-        max_bet = bet > max_bet ? bet : max_bet;
-        *main_pot += bet;
+        players[i].chips -= bet_high;
+        players[i].bet_high = bet_high;
+        max_bet = bet_high > max_bet ? bet_high : max_bet;
+        *main_pot += bet_high;
 
-        snprintf(buffer, sizeof(buffer), "You bet %d chips on %c. Remaining chips: %d.\n",
-                 bet, players[i].bet_type, players[i].chips);
+        if (bet_low > players[i].chips) bet_low = players[i].chips;
+
+        players[i].chips -= bet_low;
+        players[i].bet_low = bet_low;
+        *main_pot += bet_low;
+
+        snprintf(buffer, sizeof(buffer), "You bet %d chips on high and %d chips on low. Remaining chips: %d.\n",
+                 bet_high, bet_low, players[i].chips);
         write(clientFd[i], buffer, strlen(buffer));
     }
 }
@@ -160,15 +178,11 @@ double evaluate_expression(const char *expression) {
     for (int i = 0; i < op_index; i++) {
         if (operators[i] == 'R') {
             numbers[i] = sqrt(numbers[i]);
-            for (int j = i; j < num_index - 1; j++) {
-                numbers[j] = numbers[j + 1];
-            }
-            num_index--;
             for (int j = i; j < op_index - 1; j++) {
                 operators[j] = operators[j + 1];
             }
             op_index--;
-            i--;
+            break;
         }
     }
 
@@ -208,19 +222,23 @@ double evaluate_expression(const char *expression) {
 
     return result;
 }
-
 void determine_winners(struct Player *players, int num_players, int *main_pot) {
     double best_high = -1e9, best_low = 1e9;
     int winner_high = -1, winner_low = -1;
 
     for (int i = 0; i < num_players; i++) {
-        double result = evaluate_expression(players[i].expression);
-        if (players[i].bet_type == 'B' && fabs(result - 20) < fabs(best_high - 20)) {
-            best_high = result;
+        if (players[i].folded) continue;
+
+        double result_high = evaluate_expression(players[i].expression_high);
+        double result_low = evaluate_expression(players[i].expression_low);
+
+        if (players[i].bet_high > 0 && fabs(result_high - 20) < fabs(best_high - 20)) {
+            best_high = result_high;
             winner_high = i;
         }
-        if (players[i].bet_type == 'S' && fabs(result - 1) < fabs(best_low - 1)) {
-            best_low = result;
+
+        if (players[i].bet_low > 0 && fabs(result_low - 1) < fabs(best_low - 1)) {
+            best_low = result_low;
             winner_low = i;
         }
     }
@@ -230,8 +248,15 @@ void determine_winners(struct Player *players, int num_players, int *main_pot) {
              winner_high + 1, winner_low + 1);
     broadcast_message(buffer, num_players);
 
-    if (winner_high != -1) players[winner_high].chips += *main_pot / 2;
-    if (winner_low != -1) players[winner_low].chips += *main_pot / 2;
+    if (winner_high != -1) {
+        players[winner_high].chips += players[winner_high].bet_high * 2; // High bet payout
+    }
+
+    if (winner_low != -1) {
+        players[winner_low].chips += players[winner_low].bet_low * 2; // Low bet payout
+    }
+
+    *main_pot = 0; // Reset main pot after payout
 }
 
 void start_game(int players) {
@@ -242,6 +267,9 @@ void start_game(int players) {
     for (int i = 0; i < players; i++) {
         pc[i].id = i + 1;
         pc[i].chips = 100; 
+        pc[i].folded = false;
+        pc[i].bet_high = 0;
+        pc[i].bet_low = 0;
         deal_cards(&pc[i]);
     }
 
@@ -250,15 +278,20 @@ void start_game(int players) {
     handle_betting_phase(pc, players, &main_pot);
 
     for (int i = 0; i < players; i++) {
+        if (pc[i].folded) continue;
+
         char buffer[BUFFER_SIZE];
-        snprintf(buffer, sizeof(buffer), "Player %d, enter your expression (e.g., 1*2+3/4(B or S)):\n", pc[i].id);
+        snprintf(buffer, sizeof(buffer), "Player %d, enter your expressions: first for high bet, second for low bet.\nExample: R4-5+2*3 (High Bet)\nExample: 5+R9-3*2 (Low Bet)\n\nOperator priority:\n1. Root (R)\n2. Multiplication (*) and Division (/)\n3. Addition (+) and Subtraction (-)\n",
+                 pc[i].id);
         write(clientFd[i], buffer, strlen(buffer));
-        read(clientFd[i], pc[i].expression, sizeof(pc[i].expression));
+
+        read(clientFd[i], buffer, sizeof(buffer));
+        sscanf(buffer, "%s %s", pc[i].expression_high, pc[i].expression_low);
     }
 
-    // Determine winners
     determine_winners(pc, players, &main_pot);
 }
+
 
 int main(int argc, char *argv[]) {
     for (int i = 0; i < argc - 1; i++) {
