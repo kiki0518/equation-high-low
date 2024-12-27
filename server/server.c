@@ -45,10 +45,22 @@ void sig_chld(int signo){
 void letPlay(Room* room) {
     char sendline[MAXLINE];
     snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
-    for (int i = 0; i < room->player_count; ++i) {
+    for (int i=0; i < room->player_count; ++i) {
         Writen(room->connfd[i], sendline, strlen(sendline));
     }
+
     // Implement the game logic here...
+    // 參數傳入
+    char arguments[MAX_PLAYERS][300];
+    char *args[MAX_PLAYERS+2];
+    strcpy(arguments[0],"./game");
+    args[0] = arguments[0];
+    for(int i=0; i<room->player_count; i++){
+        sprintf(arguments[i+1],"%d",room->connfd[i]);
+        args[i+1] = arguments[i+1];
+    }
+    execv("./dealer",args);
+
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
     for (int i = 0; i < room->player_count; ++i) {
@@ -59,7 +71,7 @@ void letPlay(Room* room) {
 }
 
 int assignToRoom(int connfd, char* name) {
-    for (int i = 0; i < room_count; ++i) {
+    for (int i=0; i<room_count; i++) {
         if (rooms[i].player_count < ROOM_CAPACITY) {
             int player_id = rooms[i].player_count;
             rooms[i].connfd[player_id] = connfd;
@@ -71,24 +83,53 @@ int assignToRoom(int connfd, char* name) {
             Writen(connfd, sendline, strlen(sendline));
 
             // Check if game should start
-            if (rooms[i].player_count == MIN_START_PLAYERS) {
-                pid_t pid = fork();
-                if (pid == 0) {
-                    letPlay(&rooms[i]);
-                    exit(0);
+            if (rooms[i].player_count == MIN_START_PLAYERS){
+                snprintf(sendline, sizeof(sendline), "The minimum number of players (%d) has been reached. Do you want to start the game now? (yes/no): ", MIN_START_PLAYERS);
+                Writen(rooms[i].connfd[0], sendline, strlen(sendline));
+
+                // 設置超時等待房主回應
+                fd_set readfds;
+                FD_ZERO(&readfds);
+                FD_SET(rooms[i].connfd[0], &readfds);
+                struct timeval timeout = {30, 0};  // 30秒超時
+
+                int activity = select(rooms[i].connfd[0] + 1, &readfds, NULL, NULL, &timeout);
+                if (activity > 0 && FD_ISSET(rooms[i].connfd[0], &readfds)) {
+                    // 讀取房主的回應
+                    char response[100];
+                    int n = Read(rooms[i].connfd[0], response, sizeof(response) - 1);
+                    response[n] = '\0';
+
+                    if (strcasecmp(response, "yes") == 0){
+                        // 房主選擇開始遊戲
+                        printf("Room %d: The host has started the game.\n", rooms[i].room_id);
+                        pid_t pid = fork();
+                        if (pid == 0) {
+                            letPlay(&rooms[i]);
+                            exit(0);
+                        }
+                    } 
+                    else{
+                        // 房主選擇不開始，繼續等待其他玩家加入
+                        printf("Room %d: The host chose not to start the game yet.\n", rooms[i].room_id);
+                    }
+                } 
+                else{
+                    // 超時未回應，繼續等待玩家加入
+                    printf("Room %d: The host did not respond in time. Waiting for more players...\n", rooms[i].room_id);
                 }
-            } else if (rooms[i].player_count == ROOM_CAPACITY) {
+            } 
+            else if(rooms[i].player_count == ROOM_CAPACITY) {
                 letPlay(&rooms[i]);
             }
-
             return rooms[i].room_id;
         }
     }
 
     // Create a new room if no room is available
-    if (room_count < MAX_ROOMS) {
+    if (room_count < MAX_ROOMS){
         Room* new_room = &rooms[room_count++];
-        new_room->room_id = room_count;
+        new_room->room_id = room_count;        // start from 1
         new_room->player_count = 1;
         new_room->connfd[0] = connfd;
         strcpy(new_room->name[0], name);
@@ -111,7 +152,7 @@ int assignToRoom(int connfd, char* name) {
 
 int main(){
     int listenfd, maxfdp;
-    int n, total_id, notPair_id, connfd[100];
+    int n, total_id, connfd[100];
     char name[100][100], sendline[MAXLINE];
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
@@ -134,7 +175,7 @@ int main(){
     Signal(SIGCHLD, sig_chld);
 
     // initiate
-    notPair_id = total_id = 0;
+    total_id = 0;
     FD_ZERO(&recSet);
     FD_SET(listenfd, &recSet);
     maxfdp = listenfd + 1;
@@ -187,7 +228,6 @@ int main(){
 
                 // Assign player to a room
                 assignToRoom(connfd, name);
-
             }
 
         }
