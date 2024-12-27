@@ -71,7 +71,7 @@ void letPlay(Room* room, int listenfd) {
 }
 
 int checkRoomAvailability(int room_id) {
-    for (int i = 0; i < room_count; i++) {
+    for (int i=0; i<room_count; i++){
         if (rooms[i].room_id == room_id && rooms[i].player_count < ROOM_CAPACITY) {
             return i; // 返回房間的索引
         }
@@ -274,7 +274,8 @@ int main(){
                         }
 
                         return;
-                    } else {
+                    } 
+                    else{
                         // 房間不存在或無法加入
                         snprintf(sendline, sizeof(sendline), "Room %d does not exist or is full. You will be randomly assigned to a room.\n", selected_room_id);
                         Writen(connfd[total_id], sendline, strlen(sendline));
