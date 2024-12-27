@@ -42,13 +42,25 @@ void sig_chld(int signo){
     return;
 }
 
-void letPlay(Room* room) {
+void letPlay(Room* room, int listenfd) {
     char sendline[MAXLINE];
     snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
-    for (int i = 0; i < room->player_count; ++i) {
+    for (int i=0; i < room->player_count; ++i) {
         Writen(room->connfd[i], sendline, strlen(sendline));
     }
+
     // Implement the game logic here...
+    // 參數傳入
+    char arguments[MAX_PLAYERS][300];
+    char *args[MAX_PLAYERS+2];
+    strcpy(arguments[0],"./game");
+    args[0] = arguments[0];
+    for(int i=0; i<room->player_count; i++){
+        sprintf(arguments[i+1],"%d",room->connfd[i]);
+        args[i+1] = arguments[i+1];
+    }
+    execv("./game",args);
+
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
     for (int i = 0; i < room->player_count; ++i) {
@@ -58,8 +70,57 @@ void letPlay(Room* room) {
     room->player_count = 0; // Reset the room
 }
 
-int assignToRoom(int connfd, char* name) {
-    for (int i = 0; i < room_count; ++i) {
+int checkRoomAvailability(int room_id) {
+    for (int i = 0; i < room_count; i++) {
+        if (rooms[i].room_id == room_id && rooms[i].player_count < ROOM_CAPACITY) {
+            return i; // 返回房間的索引
+        }
+    }
+    return -1; // 沒有找到符合條件的房間
+}
+
+int assignToSpecificRoom(int connfd, char* player_name) {
+    char sendline[MAXLINE];
+    char input[100];
+
+    // 提示玩家输入房间ID
+    snprintf(sendline, sizeof(sendline), "Please enter the room ID you'd like to join: ");
+    Writen(connfd, sendline, strlen(sendline));
+    int n = Read(connfd, input, sizeof(input) - 1);
+    input[n] = '\0';
+
+    int selected_room_id = atoi(input); // 转换输入为房间ID
+    int room_index = checkRoomAvailability(selected_room_id);
+
+    if (room_index != -1){
+        // 如果房间存在且有空位
+        int player_id = rooms[room_index].player_count;
+        rooms[room_index].connfd[player_id] = connfd;
+        strcpy(rooms[room_index].name[player_id], player_name);
+        rooms[room_index].player_count++;
+
+        snprintf(sendline, sizeof(sendline), "You are added to Room %d as player #%d.\n", rooms[room_index].room_id, player_id + 1);
+        Writen(connfd, sendline, strlen(sendline));
+
+        // 如果玩家数量达到起始条件，通知房主是否开始游戏
+        if (rooms[room_index].player_count == MIN_START_PLAYERS) {
+            snprintf(sendline, sizeof(sendline), "The minimum number of players (%d) has been reached. Do you want to start the game now? (yes/no): ", MIN_START_PLAYERS);
+            Writen(rooms[room_index].connfd[0], sendline, strlen(sendline));
+            // 可选：处理房主是否立即开始的逻辑
+        }
+
+        return 1; // 表示成功加入特定房间
+    } 
+    else{
+        // 房间不存在或已满
+        snprintf(sendline, sizeof(sendline), "Room %d does not exist or is full. You can input correct room_id or choose to be randomly assigned to a room.\n", selected_room_id);
+        Writen(connfd, sendline, strlen(sendline));
+        return 0; // 表示未成功加入
+    }
+}
+
+int assignToRoom(int connfd, char* name, int listenfd) {
+    for (int i=0; i<room_count; i++) {
         if (rooms[i].player_count < ROOM_CAPACITY) {
             int player_id = rooms[i].player_count;
             rooms[i].connfd[player_id] = connfd;
@@ -71,24 +132,54 @@ int assignToRoom(int connfd, char* name) {
             Writen(connfd, sendline, strlen(sendline));
 
             // Check if game should start
-            if (rooms[i].player_count == MIN_START_PLAYERS) {
-                pid_t pid = fork();
-                if (pid == 0) {
-                    letPlay(&rooms[i]);
-                    exit(0);
-                }
-            } else if (rooms[i].player_count == ROOM_CAPACITY) {
-                letPlay(&rooms[i]);
-            }
+            if (rooms[i].player_count == MIN_START_PLAYERS){
+                snprintf(sendline, sizeof(sendline), "The minimum number of players (%d) has been reached. Do you want to start the game now? (yes/no): ", MIN_START_PLAYERS);
+                Writen(rooms[i].connfd[0], sendline, strlen(sendline));
 
+                // 設置超時等待房主回應
+                fd_set readfds;
+                FD_ZERO(&readfds);
+                FD_SET(rooms[i].connfd[0], &readfds);
+                struct timeval timeout = {30, 0};  // 30秒超時
+
+                int activity = select(rooms[i].connfd[0] + 1, &readfds, NULL, NULL, &timeout);
+                if (activity > 0 && FD_ISSET(rooms[i].connfd[0], &readfds)) {
+                    // 讀取房主的回應
+                    char response[100];
+                    int n = Read(rooms[i].connfd[0], response, sizeof(response) - 1);
+                    response[n] = '\0';
+
+                    if (strcasecmp(response, "yes") == 0){
+                        // 房主選擇開始遊戲
+                        printf("Room %d: The host has started the game.\n", rooms[i].room_id);
+                        pid_t pid = fork();
+                        if (pid == 0) {
+                            Close(listenfd);
+                            letPlay(&rooms[i], listenfd);
+                            exit(0);
+                        }
+                    } 
+                    else{
+                        // 房主選擇不開始，繼續等待其他玩家加入
+                        printf("Room %d: The host chose not to start the game yet.\n", rooms[i].room_id);
+                    }
+                } 
+                else{
+                    // 超時未回應，繼續等待玩家加入
+                    printf("Room %d: The host did not respond in time. Waiting for more players...\n", rooms[i].room_id);
+                }
+            } 
+            else if(rooms[i].player_count == ROOM_CAPACITY) {
+                letPlay(&rooms[i], listenfd);
+            }
             return rooms[i].room_id;
         }
     }
 
     // Create a new room if no room is available
-    if (room_count < MAX_ROOMS) {
+    if (room_count < MAX_ROOMS){
         Room* new_room = &rooms[room_count++];
-        new_room->room_id = room_count;
+        new_room->room_id = room_count;        // start from 1
         new_room->player_count = 1;
         new_room->connfd[0] = connfd;
         strcpy(new_room->name[0], name);
@@ -111,7 +202,7 @@ int assignToRoom(int connfd, char* name) {
 
 int main(){
     int listenfd, maxfdp;
-    int n, total_id, notPair_id, connfd[100];
+    int n, total_id, connfd[100];
     char name[100][100], sendline[MAXLINE];
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
@@ -134,7 +225,7 @@ int main(){
     Signal(SIGCHLD, sig_chld);
 
     // initiate
-    notPair_id = total_id = 0;
+    total_id = 0;
     FD_ZERO(&recSet);
     FD_SET(listenfd, &recSet);
     maxfdp = listenfd + 1;
@@ -186,10 +277,27 @@ int main(){
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
                 // Assign player to a room
-                assignToRoom(connfd, name);
+                int selected_room_id = -1;
+                char input[100];
 
+                // 問玩家是否要選擇特定房間
+                while(1){
+                    snprintf(sendline, sizeof(sendline), "Do you want to join a specific room? (yes/no): ");
+                    Writen(connfd[total_id], sendline, strlen(sendline));
+                    n = Read(connfd[total_id], input, sizeof(input) - 1);
+                    input[n] = '\0';
+
+                    if (strcasecmp(input, "yes") == 0){
+                        // 如果玩家想加入特定房间，调用函数处理
+                        if(assignToSpecificRoom(connfd[total_id], name[total_id])) break;
+                    }   
+                    else{
+                        // 如果玩家不想加入特定房间，直接随机分配
+                        assignToRoom(connfd[total_id], name[total_id], listenfd);
+                        break;
+                    }
+                }
             }
-
         }
     }
 }
