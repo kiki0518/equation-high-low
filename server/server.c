@@ -59,7 +59,7 @@ void letPlay(Room* room, int listenfd) {
         sprintf(arguments[i+1],"%d",room->connfd[i]);
         args[i+1] = arguments[i+1];
     }
-    execv("./dealer",args);
+    execv("./game",args);
 
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
