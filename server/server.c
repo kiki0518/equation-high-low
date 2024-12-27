@@ -42,7 +42,7 @@ void sig_chld(int signo){
     return;
 }
 
-void letPlay(Room* room) {
+void letPlay(Room* room, int listenfd) {
     char sendline[MAXLINE];
     snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
     for (int i=0; i < room->player_count; ++i) {
@@ -70,7 +70,7 @@ void letPlay(Room* room) {
     room->player_count = 0; // Reset the room
 }
 
-int assignToRoom(int connfd, char* name) {
+int assignToRoom(int connfd, char* name, int listenfd) {
     for (int i=0; i<room_count; i++) {
         if (rooms[i].player_count < ROOM_CAPACITY) {
             int player_id = rooms[i].player_count;
@@ -105,7 +105,8 @@ int assignToRoom(int connfd, char* name) {
                         printf("Room %d: The host has started the game.\n", rooms[i].room_id);
                         pid_t pid = fork();
                         if (pid == 0) {
-                            letPlay(&rooms[i]);
+                            Close(listenfd);
+                            letPlay(&rooms[i], listenfd);
                             exit(0);
                         }
                     } 
@@ -120,7 +121,7 @@ int assignToRoom(int connfd, char* name) {
                 }
             } 
             else if(rooms[i].player_count == ROOM_CAPACITY) {
-                letPlay(&rooms[i]);
+                letPlay(&rooms[i], listenfd);
             }
             return rooms[i].room_id;
         }
@@ -227,7 +228,7 @@ int main(){
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
                 // Assign player to a room
-                assignToRoom(connfd, name);
+                assignToRoom(connfd, name, listenfd);
             }
 
         }
