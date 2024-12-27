@@ -1,77 +1,98 @@
-# Hi-Lo Equation Game - README
+# Hi-Lo Equation Game
 
-## **Overview**
-A multiplayer game using TCP socket programming in C/C++. Players calculate results from random number and operator cards, then bet on whether the outcome is "high" or "low." The server manages connections and game logic, while the client handles user input.
+This is a multiplayer Hi-Lo Equation game where players bet on the outcome of mathematical expressions. Each player can place two bets: one for a "high" value and one for a "low" value. The game supports up to 3 players.
 
----
+## Features
 
-## **Setup**
+- Players can place two bets: one for a high value and one for a low value.
+- Supports up to 3 players.
+- Players can use basic arithmetic operators and the square root operator in their expressions.
+- The game evaluates the expressions and determines the winners based on the closest values to predefined targets.
 
-### **1. Clone the Repository**
-```bash
-git clone https://github.com/your-username/HiLoGame.git
-cd HiLoGame
-```
+## Game Rules
 
-### **2. Build the Project**
-```bash
-make
-```
+1. Each player is dealt 4 cards and 3 operators.
+2. Players place their bets for high and low values.
+3. Players submit their mathematical expressions for high and low bets.
+4. The game evaluates the expressions and determines the winners.
+5. The winners are the players whose expressions are closest to the target values.
 
-### **3. Run the Server**
-```bash
-./server
-```
+## Expression Operators
 
-### **4. Run a Client**
-Open a new terminal and run:
-```bash
-./client
-```
+- Addition (`+`)
+- Subtraction (`-`)
+- Multiplication (`*`)
+- Division (`/`)
+- Square Root (`R`)
 
----
+## Operator Priority
 
-## **Directory Structure**
-```
-HiLoGame/
-├── server/             # Server-side logic
-│   ├── server.c
-│   ├── game_logic.cpp
-│   ├── game_logic.hpp
-├── client/             # Client-side logic
-│   ├── client.c
-│   ├── client_utils.c
-├── shared/             # Shared utilities and constants
-│   ├── protocol.h
-│   ├── common_utils.c
-├── Makefile            # Build automation
-├── README.md           # Project documentation
-```
+1. Square Root (`R`)
+2. Multiplication (`*`) and Division (`/`)
+3. Addition (`+`) and Subtraction (`-`)
 
----
+## Example Expressions
 
-## **How to Play**
-1. **Server Setup**: Start the server.
-2. **Client Interaction**: Enter your name and bet (high/low).
-3. **Game Flow**:
-   - Players get random number and operator cards.
-   - Calculate the result and place bets.
-   - The server announces the winner.
+- High Bet: `R4-5+2*3`
+- Low Bet: `5+R9-3*2`
 
----
+## Getting Started
 
-## **Contributing**
-1. Fork and clone the repository.
-2. Create a feature branch:
-   ```bash
-   git checkout -b feature-name
-   ```
-3. Commit and push changes:
-   ```bash
-   git commit -m "Add feature"
-   git push origin feature-name
-   ```
-4. Open a pull request.
+### Prerequisites
 
+- GCC (GNU Compiler Collection)
+- Make
 
-Enjoy the **Hi-Lo Equation Game**! 😊
+### Building the Project
+
+1. Clone the repository:
+    ```sh
+    git clone https://github.com/your-repo/hi-lo-equation-game.git
+    cd hi-lo-equation-game
+    ```
+
+2. Build the project:
+    ```sh
+    make
+    ```
+
+### Running the Game
+
+1. Start the server:
+    ```sh
+    ./server
+    ```
+
+2. Connect players to the server:
+    ```sh
+    ./client <server_ip> <server_port>
+    ```
+
+### File Structure
+
+- [game_logic.c](http://_vscodecontentref_/2): Contains the game logic, including card dealing, betting, and expression evaluation.
+- `server.c`: Contains the server code to handle player connections and game flow.
+
+### Functions in [game_logic.c](http://_vscodecontentref_/3)
+
+- `Initialize_random_array()`: Initializes the random array for card shuffling.
+- `Initialize_card()`: Initializes the deck of cards.
+- `deal_cards(int player_index)`: Deals cards and operators to a player.
+- `handle_betting_phase(int *main_pot)`: Handles the betting phase for all players.
+- `broadcast_message(const char *message, int num_players)`: Broadcasts a message to all players.
+- `evaluate_expression(const char *expression)`: Evaluates a mathematical expression.
+- `determine_winners(int *main_pot)`: Determines the winners based on the evaluated expressions.
+- `Initialize_player()`: Initializes the players.
+- `start_game()`: Starts the game.
+
+### Functions in `server.c`
+
+- `main(int argc, char *argv[])`: Entry point of the server application. Initializes the server and starts the game.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Thanks to all contributors and open-source projects that made this game possible.
