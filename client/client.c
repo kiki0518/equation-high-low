@@ -79,7 +79,7 @@ int choose_identity(int sockfd){
         recvline[n] = '\0';
         if(recvline == "Do you want to join as a player or a spectator? (player/spectator): "){
             printf("%s", recvline);
-            if(Fget(identity, MAXLINE, stdin) == NULL) return;
+            if(Fget(identity, MAXLINE, stdin) == NULL) return -1;
             Writen(sockfd, identity, strlen(identity));
         }
         else if(recvline == "end") break;
@@ -89,6 +89,27 @@ int choose_identity(int sockfd){
     }
     if(identity == "player") return 1;
     if(identity == "spectator") return 0;
+}
+
+void spec_distribute(int sockfd){
+    int n;
+    char room_id[100], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        if(recvline == "Please enter the room ID you'd like to spectate: "){
+            printf("%s", recvline);
+            if(Fget(room_id, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, room_id, strlen(room_id));
+        }
+        else if(recvline == "Success!\n"){
+            printf("%s", recvline);
+            break;
+        }
+        else if(recvline == "This room does not exist or the room has close.\n"){
+            printf("%s", recvline);
+        }
+    }
 }
 
 void handle_game(int sock_fd) {

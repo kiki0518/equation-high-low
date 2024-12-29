@@ -147,12 +147,12 @@ int assignAsSpectator(int connfd, char* name, int listenfd) {
             strcpy(rooms[i].spec_name[spectator_id], name);
             rooms[i].spec_count++;
 
-            snprintf(sendline, sizeof(sendline), "You are now spectating Room %d.\n", rooms[i].room_id);
+            snprintf(sendline, sizeof(sendline), "Success!\n", rooms[i].room_id);
             Writen(connfd, sendline, strlen(sendline));
             return rooms[i].room_id;
         }
     }
-    snprintf(sendline, sizeof(sendline), "Room %d does not exist or the room has close.\n", selected_room_id);
+    snprintf(sendline, sizeof(sendline), "This room does not exist or the room has close.\n", selected_room_id);
     Writen(connfd, sendline, strlen(sendline));
     return -1;
 }
