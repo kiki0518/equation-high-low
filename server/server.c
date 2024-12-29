@@ -115,6 +115,7 @@ void letPlay(Room* room, int listenfd) {
         Writen(room->connfd[i], sendline, strlen(sendline));
         Close(room->connfd[i]);
     }
+    room_count--;
     room->player_count = 0; // Reset the room
     room->spec_count = 0;
 }
@@ -324,6 +325,10 @@ int main(){
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
+                // tell client can stop read the messege from server
+                snprintf(sendline, sizeof(sendline), "end");
+                Writen(connfd[total_id], sendline, strlen(sendline));
+
                 // Assign player to a room
                 int selected_room_id = -1;
                 char input[100], input1[100];
@@ -339,6 +344,8 @@ int main(){
                         Writen(connfd[total_id], sendline, strlen(sendline));
                     }
                     else{
+                        snprintf(sendline, sizeof(sendline), "end");
+                        Writen(connfd[total_id], sendline, strlen(sendline));
                         break;
                     }
                 }

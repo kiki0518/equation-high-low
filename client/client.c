@@ -10,56 +10,85 @@ Receiving game updates from the server.
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
-
+#include "unpv13e/lib/unp.h"
 #define BUFFER_SIZE 1024
 
-void connect_to_server(const char *server_ip, int port, int *sock_fd);
+void input_name(int sockfd);
+int choose_identity(int sockfd);
 void handle_game(int sock_fd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <server_ip> <port>\n", argv[0]);
-        exit(EXIT_FAILURE);
+    int					n, sockfd;
+	struct sockaddr_in	servaddr;
+    char                sendline[MAXLINE], recvline[MAXLINE], name[100];
+
+	if (argc != 2)
+		err_quit("usage: tcpcli <IPaddress>");
+
+	sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(SERV_PORT+5);
+	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
+	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
+    printf("Connected to the server.\n");
+
+    // input valid name
+    input_name(sockfd);
+    
+    // choose to be a spectator
+    if(choose_identity(sockfd) == 0){
+        
+    }
+    if(choose_identity(sockfd) == 1){
+        
     }
 
-    const char *server_ip = argv[1];
-    int port = atoi(argv[2]);
 
-    int sock_fd;
-    connect_to_server(server_ip, port, &sock_fd);
+    
+    handle_game(sockfd);
 
-    printf("Connected to the server.\n");
-    handle_game(sock_fd);
-
-    close(sock_fd);
+    close(sockfd);
     return 0;
 }
 
-void connect_to_server(const char *server_ip, int port, int *sock_fd) {
-    *sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (*sock_fd < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
+void input_name(int sockfd){
+    int n;
+    char name[100], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        if(recvline == "Please input your name: " || recvline == "This name has been used. Please try another name: "){
+            printf("%s", recvline);
+            if(Fget(name, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, name, strlen(name));
+        }
+        else if(recvline == "end") break;
+        else printf("%s", recvline);
     }
+}
 
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
-        perror("Invalid server IP address");
-        close(*sock_fd);
-        exit(EXIT_FAILURE);
+int choose_identity(int sockfd){
+    int n;
+    char identity[100], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        if(recvline == "Do you want to join as a player or a spectator? (player/spectator): "){
+            printf("%s", recvline);
+            if(Fget(identity, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, identity, strlen(identity));
+        }
+        else if(recvline == "end") break;
+        else if(recvline == "Invalid input. Please input again.\n"){
+            printf("%s", recvline);
+        }
     }
-
-    if (connect(*sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Connection to the server failed");
-        close(*sock_fd);
-        exit(EXIT_FAILURE);
-    }
+    if(identity == "player") return 1;
+    if(identity == "spectator") return 0;
 }
 
 void handle_game(int sock_fd) {
