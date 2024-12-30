@@ -40,6 +40,9 @@ int main(int argc, char *argv[]) {
 
     // input valid name
     input_name(sockfd);
+
+    // the sign to tell server that it can continue
+    // to avoid server send messege next stage too early
     snprintf(sendline, sizeof(sendline), "can continue");
     Writen(sockfd, sendline, strlen(sendline));
     
@@ -49,6 +52,7 @@ int main(int argc, char *argv[]) {
     }
     // choose to be a player
     if(choose_identity(sockfd) == 1){
+        sleep(1);
         player_distribute(sockfd);
     }
     
@@ -71,7 +75,7 @@ void input_name(int sockfd){
             printf("%s", recvline);
             if(Fgets(name, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, name, strlen(name));
-            printf("=========================\n");
+            printf("==================================================\n");
         }
         else if(strcmp(recvline, "You can end this and go next.") == 0){
             //printf("Are you in?\n");
@@ -91,7 +95,10 @@ int choose_identity(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
+        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+
         if(strcmp(recvline, "Do you want to join as a player or a spectator? (player/spectator): ") == 0){
+            printf("==================================================\n");
             printf("%s", recvline);
             if(Fgets(identity, MAXLINE, stdin) == NULL) return -1;
             Writen(sockfd, identity, strlen(identity));

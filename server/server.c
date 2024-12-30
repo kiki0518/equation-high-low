@@ -346,6 +346,7 @@ int main(){
                     Writen(connfd[total_id], sendline, strlen(sendline));
                 }
 
+                sleep(2);
                 // Assign player to a room
                 //int selected_room_id = -1;
                 char input[100], input1[100];
@@ -357,15 +358,18 @@ int main(){
                         snprintf(sendline, sizeof(sendline), "Do you want to join as a player or a spectator? (player/spectator): ");
                         Writen(connfd[total_id], sendline, strlen(sendline));
                         int n = Read(connfd[total_id], input1, sizeof(input1) - 1);
-                        input1[n] = '\0';
+                        input1[n-1] = '\0';
+                        printf("Recv: %s\n", input1);
 
                         if(strcasecmp(input1, "spectator") != 0 && strcasecmp(input1, "player") != 0){
                             snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
                             Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(1);
                         }
                         else{
                             snprintf(sendline, sizeof(sendline), "You can end this and go next.");
                             Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(1);
                             break;
                         }
                     }
@@ -387,7 +391,7 @@ int main(){
                         snprintf(sendline, sizeof(sendline), "Do you want to join a specific room? (yes/no): ");
                         Writen(connfd[total_id], sendline, strlen(sendline));
                         n = Read(connfd[total_id], input, sizeof(input) - 1);
-                        input[n] = '\0';
+                        input[n-1] = '\0';
 
                         if (strcasecmp(input, "yes") == 0){
                             snprintf(sendline, sizeof(sendline), " Yes Success!\n");
@@ -405,6 +409,7 @@ int main(){
                         else{
                             snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
                             Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(1);
                         }
                     }
                 }
