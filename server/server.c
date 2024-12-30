@@ -5,15 +5,22 @@ Game phases (e.g., preparation, gameplay, result broadcast).
 Communication with clients over TCP sockets.
 Integrates game logic and manages player state.
 */
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include "unpv13e/lib/unp.h"
 #include <unistd.h>
-#include <signal.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h> 
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
+
+#include "./unpv13e/lib/unp.h"
+
 
 // Room structure to manage multiple rooms
 #define MAX_PLAYERS 100
@@ -45,6 +52,46 @@ void sig_chld(int signo){
     // -1: wait for the first terminated child
 	// WNOHANG: not block if there are no more terminated children
     return;
+}
+
+void letPlay(Room* room, int listenfd) {
+    char sendline[MAXLINE];
+    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
+    for (int i=0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+    }
+
+    // Implement the game logic here...
+    // 參數傳入
+    char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
+    char *args[MAX_PLAYERS+MAX_SPECS+5];
+    strcpy(arguments[0],"./game");
+    args[0] = arguments[0];
+
+    char buffer[12];
+    snprintf(buffer, sizeof(buffer), "%d", room->player_count);
+    args[1] = buffer;
+    
+    for(int i=0; i<room->player_count; i++){
+        sprintf(arguments[i+1],"%d",room->connfd[i]);
+        args[i+2] = arguments[i+1];
+    }
+    for(int i=0; i<room->spec_count; i++){
+        sprintf(arguments[i+1],"%d",room->spec_connfd[i]);
+        args[room->player_count+2+i] = arguments[i+1];
+    }
+    
+    execv("./game",args);
+
+    sleep(5); // Simulate game duration
+    snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
+    for (int i = 0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+        Close(room->connfd[i]);
+    }
+    room_count--;
+    room->player_count = 0; // Reset the room
+    room->spec_count = 0;
 }
 
 void set_timeout(Room* room, int listenfd){
@@ -83,43 +130,6 @@ void set_timeout(Room* room, int listenfd){
     }
 }
 
-void letPlay(Room* room, int listenfd) {
-    char sendline[MAXLINE];
-    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
-    for (int i=0; i < room->player_count; ++i) {
-        Writen(room->connfd[i], sendline, strlen(sendline));
-    }
-
-    // Implement the game logic here...
-    // 參數傳入
-    char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
-    char *args[MAX_PLAYERS+MAX_SPECS+5];
-    strcpy(arguments[0],"./game");
-    args[0] = arguments[0];
-    args[1] = itoa(room->player_count);
-    
-    for(int i=0; i<room->player_count; i++){
-        sprintf(arguments[i+1],"%d",room->connfd[i]);
-        args[i+2] = arguments[i+1];
-    }
-    for(int i=0; i<room->spec_count; i++){
-        sprintf(arguments[i+1],"%d",room->spec_connfd[i]);
-        args[room->player_count+2+i] = arguments[i+1];
-    }
-    
-    execv("./game",args);
-
-    sleep(5); // Simulate game duration
-    snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
-    for (int i = 0; i < room->player_count; ++i) {
-        Writen(room->connfd[i], sendline, strlen(sendline));
-        Close(room->connfd[i]);
-    }
-    room_count--;
-    room->player_count = 0; // Reset the room
-    room->spec_count = 0;
-}
-
 int checkRoomAvailability(int room_id) {
     for (int i = 0; i < room_count; i++) {
         if (rooms[i].room_id == room_id && rooms[i].player_count < ROOM_CAPACITY) {
@@ -147,12 +157,12 @@ int assignAsSpectator(int connfd, char* name, int listenfd) {
             strcpy(rooms[i].spec_name[spectator_id], name);
             rooms[i].spec_count++;
 
-            snprintf(sendline, sizeof(sendline), "Success!\n", rooms[i].room_id);
+            snprintf(sendline, sizeof(sendline), "Success!\n");
             Writen(connfd, sendline, strlen(sendline));
             return rooms[i].room_id;
         }
     }
-    snprintf(sendline, sizeof(sendline), "This room does not exist or the room has close.\n", selected_room_id);
+    snprintf(sendline, sizeof(sendline), "This room does not exist or the room has close.\n");
     Writen(connfd, sendline, strlen(sendline));
     return -1;
 }
@@ -252,7 +262,7 @@ int assignToRoom(int connfd, char* name, int listenfd) {
 int main(){
     int listenfd, maxfdp;
     int n, total_id, connfd[100];
-    char name[100][100], sendline[MAXLINE];
+    char name[100][100], sendline[MAXLINE], recvline[MAXLINE];
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
     fd_set rset, recSet;
@@ -263,7 +273,7 @@ int main(){
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     // port number set?
-    servaddr.sin_port = htons(SERV_PORT+3);
+    servaddr.sin_port = htons(SERV_PORT);
 
     // can reuse ip address
     int optval = 1; 
@@ -303,7 +313,8 @@ int main(){
                 // or ask players to input again (below)
                 while(ok == 0){
                     n = Read(connfd[total_id], name[total_id], 100);
-                    name[total_id][n] = '\0';
+                    // delete \n
+                    name[total_id][n-1] = '\0';
                     printf("Recv: %s\n", name[total_id]);
                     for(int i=0; i<total_id; i++){
                         if(strcmp(name[total_id], name[i]) == 0){
@@ -321,34 +332,45 @@ int main(){
                 
                 snprintf(sendline, sizeof(sendline), "You are the #%d user.\n", total_id);
                 Writen(connfd[total_id], sendline, strlen(sendline));
-                snprintf(sendline, sizeof(sendline), "You may now play with computer or wait for other users.\n", total_id);
+                snprintf(sendline, sizeof(sendline), "You may now play with computer or wait for other users.\n");
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
-                // tell client can stop read the messege from server
-                snprintf(sendline, sizeof(sendline), "end");
-                Writen(connfd[total_id], sendline, strlen(sendline));
+                // 暫停的點，不然後續的訊息會被一起傳
+                n = Read(connfd[total_id], recvline, MAXLINE);
+                recvline[n] = '\0';
+
+                if(strcmp(recvline, "ok") == 0){
+                    // tell client can stop read the messege from server
+                    snprintf(sendline, sizeof(sendline), "You can end this and go next.");
+                    Writen(connfd[total_id], sendline, strlen(sendline));
+                }
 
                 // Assign player to a room
-                int selected_room_id = -1;
+                //int selected_room_id = -1;
                 char input[100], input1[100];
-
-                while(1){
-                    snprintf(sendline, sizeof(sendline), "Do you want to join as a player or a spectator? (player/spectator): ");
-                    Writen(connfd, sendline, strlen(sendline));
-                    int n = Read(connfd[total_id], input1, sizeof(input1) - 1);
-                    input1[n] = '\0';
-
-                    if(strcasecmp(input1, "spectator") != 0 && strcasecmp(input1, "player") != 0){
-                        snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
+                
+                n = Read(connfd[total_id], recvline, MAXLINE);
+                recvline[n] = '\0';
+                if(strcmp(recvline, "can continue") == 0){
+                    while(1){
+                        snprintf(sendline, sizeof(sendline), "Do you want to join as a player or a spectator? (player/spectator): ");
                         Writen(connfd[total_id], sendline, strlen(sendline));
-                    }
-                    else{
-                        snprintf(sendline, sizeof(sendline), "end");
-                        Writen(connfd[total_id], sendline, strlen(sendline));
-                        break;
+                        int n = Read(connfd[total_id], input1, sizeof(input1) - 1);
+                        input1[n] = '\0';
+
+                        if(strcasecmp(input1, "spectator") != 0 && strcasecmp(input1, "player") != 0){
+                            snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                        }
+                        else{
+                            snprintf(sendline, sizeof(sendline), "You can end this and go next.");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                            break;
+                        }
                     }
                 }
+                
                 // to be a spectator
                 if(strcasecmp(input1, "spectator") == 0){
                     while(1){

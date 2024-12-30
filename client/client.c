@@ -15,14 +15,16 @@ Receiving game updates from the server.
 
 void input_name(int sockfd);
 int choose_identity(int sockfd);
+void spec_distribute(int sockfd);
+void player_distribute(int sockfd);
 void handle_game(int sock_fd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 
 int main(int argc, char *argv[]) {
-    int					n, sockfd;
+    int					sockfd;
+    char                sendline[MAXLINE];
 	struct sockaddr_in	servaddr;
-    char                sendline[MAXLINE], recvline[MAXLINE], name[100];
 
 	if (argc != 2)
 		err_quit("usage: tcpcli <IPaddress>");
@@ -31,13 +33,15 @@ int main(int argc, char *argv[]) {
 
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(SERV_PORT+5);
+	servaddr.sin_port = htons(SERV_PORT);
 	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
     printf("Connected to the server.\n");
 
     // input valid name
     input_name(sockfd);
+    snprintf(sendline, sizeof(sendline), "can continue");
+    Writen(sockfd, sendline, strlen(sendline));
     
     // choose to be a spectator
     if(choose_identity(sockfd) == 0){
@@ -56,17 +60,28 @@ int main(int argc, char *argv[]) {
 
 void input_name(int sockfd){
     int n;
-    char name[100], recvline[MAXLINE];
+    char name[100], sendline[MAXLINE], recvline[MAXLINE];
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        if(recvline == "Please input your name: " || recvline == "This name has been used. Please try another name: "){
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+
+        if(strcmp(recvline, "Please input your name: ") == 0 
+        || strcmp(recvline, "This name has been used. Please try another name: ") == 0){
             printf("%s", recvline);
-            if(Fget(name, MAXLINE, stdin) == NULL) return;
+            if(Fgets(name, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, name, strlen(name));
+            printf("=========================\n");
         }
-        else if(recvline == "end") break;
-        else printf("%s", recvline);
+        else if(strcmp(recvline, "You can end this and go next.") == 0){
+            //printf("Are you in?\n");
+            break;
+        }
+        else{
+            snprintf(sendline, sizeof(sendline), "ok");
+            Writen(sockfd, sendline, strlen(sendline));
+            printf("%s", recvline);
+        }
     }
 }
 
@@ -76,18 +91,18 @@ int choose_identity(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        if(recvline == "Do you want to join as a player or a spectator? (player/spectator): "){
+        if(strcmp(recvline, "Do you want to join as a player or a spectator? (player/spectator): ") == 0){
             printf("%s", recvline);
-            if(Fget(identity, MAXLINE, stdin) == NULL) return -1;
+            if(Fgets(identity, MAXLINE, stdin) == NULL) return -1;
             Writen(sockfd, identity, strlen(identity));
         }
-        else if(recvline == "end") break;
-        else if(recvline == "Invalid input. Please input again.\n"){
+        else if(strcmp(recvline, "You can end this and go next.") == 0) break;
+        else if(strcmp(recvline, "Invalid input. Please input again.\n") == 0){
             printf("%s", recvline);
         }
     }
-    if(identity == "player") return 1;
-    if(identity == "spectator") return 0;
+    if(strcmp(identity,"player") == 0) return 1;
+    else if(strcmp(identity,"spectator") == 0) return 0;
 }
 
 void spec_distribute(int sockfd){
@@ -96,16 +111,16 @@ void spec_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        if(recvline == "Please enter the room ID you'd like to spectate: "){
+        if(strcmp(recvline, "Please enter the room ID you'd like to spectate: ") == 0){
             printf("%s", recvline);
-            if(Fget(room_id, MAXLINE, stdin) == NULL) return;
+            if(Fgets(room_id, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, room_id, strlen(room_id));
         }
-        else if(recvline == "Success!\n"){
+        else if(strcmp(recvline, "Success!\n") == 0){
             printf("%s", recvline);
             break;
         }
-        else if(recvline == "This room does not exist or the room has close.\n"){
+        else if(strcmp(recvline, "This room does not exist or the room has close.\n") == 0){
             printf("%s", recvline);
         }
     }
@@ -117,14 +132,14 @@ void player_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        if(recvline == "Do you want to join a specific room? (yes/no): "){
+        if(strcmp(recvline, "Do you want to join a specific room? (yes/no): ") == 0){
             printf("%s", recvline);
-            if(Fget(room_id, MAXLINE, stdin) == NULL) return;
+            if(Fgets(room_id, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, room_id, strlen(room_id));
         }
-        else if(recvline == "Yes Success!\n") break;
-        else if(recvline == "No Success!\n") break;
-        else if(recvline == "Invalid input. Please input again.\n"){
+        else if(strcmp(recvline, "Yes Success!\n") == 0) break;
+        else if(strcmp(recvline, "No Success!\n") == 0) break;
+        else if(strcmp(recvline, "Invalid input. Please input again.\n") == 0){
             printf("%s", recvline);
         }
     }
@@ -139,11 +154,11 @@ void handle_game(int sock_fd) {
 
         if (strstr(buffer, "enter your expressions") != NULL) {
             printf("Input your expressions (High Bet and Low Bet): ");
-            fgets(buffer, BUFFER_SIZE, stdin);
+            Fgets(buffer, BUFFER_SIZE, stdin);
             send_to_server(sock_fd, buffer);
         } else if (strstr(buffer, "your turn to bet") != NULL) {
             printf("Input your bets (High Bet and Low Bet): ");
-            fgets(buffer, BUFFER_SIZE, stdin);
+            Fgets(buffer, BUFFER_SIZE, stdin);
             send_to_server(sock_fd, buffer);
         } else if (strstr(buffer, "fold") != NULL || strstr(buffer, "out of this round") != NULL) {
             break;
@@ -152,7 +167,7 @@ void handle_game(int sock_fd) {
             break;
         } else {
             printf("Input your response: ");
-            fgets(buffer, BUFFER_SIZE, stdin);
+            Fgets(buffer, BUFFER_SIZE, stdin);
             send_to_server(sock_fd, buffer);
         }
     }
