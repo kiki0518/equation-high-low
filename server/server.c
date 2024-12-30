@@ -368,13 +368,21 @@ int main(){
                         input[n] = '\0';
 
                         if (strcasecmp(input, "yes") == 0){
+                            snprintf(sendline, sizeof(sendline), " Yes Success!\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
                             // 如果玩家想加入特定房间，调用函数处理
                             if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd)) break;
                         }   
-                        else{
+                        else if(strcasecmp(input, "no") == 0){
+                            snprintf(sendline, sizeof(sendline), " No Success!\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
                             // 如果玩家不想加入特定房间，直接随机分配
                             assignToRoom(connfd[total_id], name[total_id], listenfd);
                             break;
+                        }
+                        else{
+                            snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
                         }
                     }
                 }

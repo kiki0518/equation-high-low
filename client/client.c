@@ -43,11 +43,10 @@ int main(int argc, char *argv[]) {
     if(choose_identity(sockfd) == 0){
         spec_distribute(sockfd);
     }
+    // choose to be a player
     if(choose_identity(sockfd) == 1){
-        
+        player_distribute(sockfd);
     }
-
-
     
     handle_game(sockfd);
 
@@ -107,6 +106,25 @@ void spec_distribute(int sockfd){
             break;
         }
         else if(recvline == "This room does not exist or the room has close.\n"){
+            printf("%s", recvline);
+        }
+    }
+}
+
+void player_distribute(int sockfd){
+    int n;
+    char room_id[100], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        if(recvline == "Do you want to join a specific room? (yes/no): "){
+            printf("%s", recvline);
+            if(Fget(room_id, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, room_id, strlen(room_id));
+        }
+        else if(recvline == "Yes Success!\n") break;
+        else if(recvline == "No Success!\n") break;
+        else if(recvline == "Invalid input. Please input again.\n"){
             printf("%s", recvline);
         }
     }
