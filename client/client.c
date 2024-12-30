@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     
     // choose to be a spectator
     if(choose_identity(sockfd) == 0){
-        
+        spec_distribute(sockfd);
     }
     if(choose_identity(sockfd) == 1){
         
