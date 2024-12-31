@@ -62,7 +62,7 @@ void input_name(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Please input your name: ") == 0){
             printf("%s", recvline);
@@ -84,7 +84,7 @@ void choose_identity(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Do you want to join as a player or a spectator? (player/spectator): ") == 0){
             printf("==================================================\n");
@@ -99,6 +99,8 @@ void choose_identity(int sockfd){
             break;
         }
         else if(strcmp(recvline, "You can end this and go next.") == 0 && strcmp(identity,"spectator\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I get.");
+            Writen(sockfd, sendline, strlen(sendline));
             spec_distribute(sockfd);
             break;
         }
@@ -110,7 +112,33 @@ void choose_identity(int sockfd){
 }
 
 void player_distribute(int sockfd){
+    int n;
+    char choice[100], sendline[MAXLINE], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
+        if(strcmp(recvline, "Do you want to join a specific room? (yes/no): ") == 0){
+            printf("==================================================\n");
+            printf("%s", recvline);
+            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, choice, strlen(choice));
+        }
+        else if(strcmp(recvline, "Yes Success!\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I know.");
+            Writen(sockfd, sendline, strlen(sendline));
+            break;
+        }
+        else if(strcmp(recvline, "No Success!\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I know.");
+            Writen(sockfd, sendline, strlen(sendline));
+            break;
+        }
+        else{
+            printf("%s", recvline);
+        }
+    }
 }
 
 void spec_distribute(int sockfd){
