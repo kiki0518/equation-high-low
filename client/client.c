@@ -17,13 +17,14 @@ void input_name(int sockfd);
 void choose_identity(int sockfd);
 void player_distribute(int sockfd);
 void spec_distribute(int sockfd);
+void check_start(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 void handle_game(int sock_fd);
 
 
 int main(int argc, char *argv[]) {
-    int sockfd;
+    int n, sockfd;
     struct sockaddr_in servaddr;
     char sendline[MAXLINE];
 
@@ -44,13 +45,12 @@ int main(int argc, char *argv[]) {
     printf("Connected to the server.\n");
 
     input_name(sockfd);
-
-    snprintf(sendline, sizeof(sendline), "can continue");
-    Writen(sockfd, sendline, strlen(sendline));
-
     choose_identity(sockfd);
+
+    check_start(sockfd);
     // 处理游戏逻辑
     handle_game(sockfd);
+    
 
     close(sockfd);
     return 0;
@@ -64,7 +64,8 @@ void input_name(int sockfd){
         recvline[n] = '\0';
         //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
-        if(strcmp(recvline, "Please input your name: ") == 0){
+        if(strcmp(recvline, "Please input your name: ") == 0 ||
+           strcmp(recvline, "This name has been used. Please try another name: ") == 0){
             printf("%s", recvline);
             if(Fgets(name, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, name, strlen(name));
@@ -180,13 +181,30 @@ void spec_distribute(int sockfd){
     }
 }
 
+void check_start(int sockfd){
+    int n;
+    char choice[100], sendline[MAXLINE], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+
+        if(strcmp(recvline, "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ") == 0){
+            //printf("==================================================\n");
+            printf("%s", recvline);
+            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, choice, strlen(choice));
+        }
+        else if(strcmp(recvline, "Let start the game.") == 0){
+            sleep(2);
+            break;
+        }
+    }
+}
+
 void handle_game(int sock_fd) {
     char buffer[BUFFER_SIZE];
     char input[BUFFER_SIZE];
-
-    printf("Enter your name: ");
-    Fgets(input, BUFFER_SIZE, stdin);
-    send_to_server(sock_fd, input);
 
     while (1) {
         // 从服务端读取消息
