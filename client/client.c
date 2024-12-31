@@ -108,7 +108,6 @@ void choose_identity(int sockfd){
             printf("%s", recvline);
         }
     }
-    
 }
 
 void player_distribute(int sockfd){
@@ -134,6 +133,11 @@ void player_distribute(int sockfd){
             snprintf(sendline, sizeof(sendline), "I know.");
             Writen(sockfd, sendline, strlen(sendline));
             break;
+        }
+        else if(strcmp(recvline, "Please enter the room ID you'd like to join: ") == 0){
+            printf("%s", recvline);
+            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, choice, strlen(choice));
         }
         else{
             printf("%s", recvline);
