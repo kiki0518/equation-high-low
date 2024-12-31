@@ -129,8 +129,8 @@ int assignAsSpectator(int connfd, char* name, int listenfd) {
     snprintf(sendline, sizeof(sendline), "Please enter the room ID you'd like to spectate: ");
     Writen(connfd, sendline, strlen(sendline));
     char input[100];
-    int n = Read(connfd, input, sizeof(input) - 1);
-    input[n] = '\0';
+    int n = Read(connfd, input, 100);
+    input[n-1] = '\0';
 
     int selected_room_id = atoi(input);
 
@@ -356,8 +356,13 @@ int main(){
                         while(1){
                             // room_id start from 1
                             if(assignAsSpectator(connfd[total_id], name[total_id], listenfd) > 0){
+                                printf("Send: Spec Success!\n");
+                                snprintf(sendline, sizeof(sendline), "Spec Success!\n");
+                                Writen(connfd[total_id], sendline, strlen(sendline));
+                                sleep(2);
                                 break;
                             }
+                            sleep(2);
                         }
                     }
                     // to be a player
