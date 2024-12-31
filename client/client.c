@@ -116,7 +116,7 @@ void player_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Do you want to join a specific room? (yes/no): ") == 0){
             printf("==================================================\n");
@@ -146,7 +146,38 @@ void player_distribute(int sockfd){
 }
 
 void spec_distribute(int sockfd){
+    int n;
+    char choice[100], sendline[MAXLINE], recvline[MAXLINE];
+    while(1){
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
+        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
+        if(strcmp(recvline, "Please enter the room ID you'd like to spectate: ") == 0){
+            printf("==================================================\n");
+            printf("%s", recvline);
+            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, choice, strlen(choice));
+        }
+        else if(strcmp(recvline, "Yes Success!\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I know.");
+            Writen(sockfd, sendline, strlen(sendline));
+            break;
+        }
+        else if(strcmp(recvline, "No Success!\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I know.");
+            Writen(sockfd, sendline, strlen(sendline));
+            break;
+        }
+        else if(strcmp(recvline, "Please enter the room ID you'd like to join: ") == 0){
+            printf("%s", recvline);
+            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
+            Writen(sockfd, choice, strlen(choice));
+        }
+        else{
+            printf("%s", recvline);
+        }
+    }
 }
 
 void handle_game(int sock_fd) {
