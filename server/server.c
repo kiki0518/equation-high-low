@@ -231,6 +231,7 @@ int assignToRoom(int connfd, char* name, int listenfd) {
         char sendline[MAXLINE];
         snprintf(sendline, sizeof(sendline), "You are the host of Room %d.\n", new_room->room_id);
         Writen(connfd, sendline, strlen(sendline));
+        sleep(2);
 
         return new_room->room_id;
     }
@@ -348,6 +349,7 @@ int main(){
 
                 n = Read(connfd[total_id], recvline, MAXLINE);
                 recvline[n] = '\0';
+                printf("Recv: %s\n", recvline);
                 if(strcmp(recvline, "I get.") == 0){
                     // to be a spectator
                     if(strcasecmp(input1, "spectator") == 0){
@@ -365,21 +367,28 @@ int main(){
                             snprintf(sendline, sizeof(sendline), "Do you want to join a specific room? (yes/no): ");
                             Writen(connfd[total_id], sendline, strlen(sendline));
                             n = Read(connfd[total_id], input, sizeof(input) - 1);
-                            input[n] = '\0';
+                            input[n-1] = '\0';
+                            printf("Recv: %s\n", input);
 
                             if (strcasecmp(input, "yes") == 0){
-                                snprintf(sendline, sizeof(sendline), "Yes Success!\n");
-                                Writen(connfd[total_id], sendline, strlen(sendline));
-                                sleep(2);
                                 // 如果玩家想加入特定房间，调用函数处理
-                                if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd)) break;
+                                if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd)){
+                                    snprintf(sendline, sizeof(sendline), "Yes Success!\n");
+                                    Writen(connfd[total_id], sendline, strlen(sendline));
+                                    sleep(2);
+                                    break;
+                                }
+                                
                             }
-                            else{
-                                snprintf(sendline, sizeof(sendline), "No Success!\n");
-                                Writen(connfd[total_id], sendline, strlen(sendline));
-                                sleep(2);
+                            else if(strcasecmp(input, "no") == 0){
                                 // 如果玩家不想加入特定房间，直接随机分配
-                                if(assignToRoom(connfd[total_id], name[total_id], listenfd)) break;
+                                if(assignToRoom(connfd[total_id], name[total_id], listenfd)){
+                                    snprintf(sendline, sizeof(sendline), "No Success!\n");
+                                    Writen(connfd[total_id], sendline, strlen(sendline));
+                                    sleep(2);
+                                    break;
+                                }
+                                
                             }
                         }
                     }
