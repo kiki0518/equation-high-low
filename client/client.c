@@ -80,11 +80,11 @@ void input_name(int sockfd){
 
 void choose_identity(int sockfd){
     int n;
-    char identity[100], recvline[MAXLINE];
+    char identity[100], sendline[MAXLINE], recvline[MAXLINE];
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Do you want to join as a player or a spectator? (player/spectator): ") == 0){
             printf("==================================================\n");
@@ -93,6 +93,8 @@ void choose_identity(int sockfd){
             Writen(sockfd, identity, strlen(identity));
         }
         else if(strcmp(recvline, "You can end this and go next.") == 0 && strcmp(identity,"player\n") == 0){
+            snprintf(sendline, sizeof(sendline), "I get.");
+            Writen(sockfd, sendline, strlen(sendline));
             player_distribute(sockfd);
             break;
         }
