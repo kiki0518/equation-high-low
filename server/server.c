@@ -159,7 +159,7 @@ int assignToSpecificRoom(int connfd, char* player_name, int listenfd) {
     snprintf(sendline, sizeof(sendline), "Please enter the room ID you'd like to join: ");
     Writen(connfd, sendline, strlen(sendline));
     int n = Read(connfd, input, sizeof(input) - 1);
-    input[n] = '\0';
+    input[n-1] = '\0';
 
     int selected_room_id = atoi(input); // 转换输入为房间ID
     int room_index = checkRoomAvailability(selected_room_id);
@@ -366,29 +366,33 @@ int main(){
                         while(1){
                             snprintf(sendline, sizeof(sendline), "Do you want to join a specific room? (yes/no): ");
                             Writen(connfd[total_id], sendline, strlen(sendline));
+
                             n = Read(connfd[total_id], input, sizeof(input) - 1);
                             input[n-1] = '\0';
                             printf("Recv: %s\n", input);
 
                             if (strcasecmp(input, "yes") == 0){
                                 // 如果玩家想加入特定房间，调用函数处理
-                                if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd)){
+                                if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd) > 0){
+                                    printf("Send: Yes Success!\n");
                                     snprintf(sendline, sizeof(sendline), "Yes Success!\n");
                                     Writen(connfd[total_id], sendline, strlen(sendline));
                                     sleep(2);
                                     break;
                                 }
+                                sleep(2);
                                 
                             }
                             else if(strcasecmp(input, "no") == 0){
                                 // 如果玩家不想加入特定房间，直接随机分配
-                                if(assignToRoom(connfd[total_id], name[total_id], listenfd)){
+                                if(assignToRoom(connfd[total_id], name[total_id], listenfd) > 0){
+                                    printf("Send: No Success!\n");
                                     snprintf(sendline, sizeof(sendline), "No Success!\n");
                                     Writen(connfd[total_id], sendline, strlen(sendline));
                                     sleep(2);
                                     break;
                                 }
-                                
+                                sleep(2);
                             }
                         }
                     }
