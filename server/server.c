@@ -1,10 +1,3 @@
-/*
-Main server logic that handles:
-Client connections.
-Game phases (e.g., preparation, gameplay, result broadcast).
-Communication with clients over TCP sockets.
-Integrates game logic and manages player state.
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +40,53 @@ void sig_chld(int signo){
     return;
 }
 
+void letPlay(Room* room, int listenfd) {
+    char sendline[MAXLINE];
+    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
+    for (int i=0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+    }
+
+    // Implement the game logic here...
+    // 參數傳入
+    char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
+    char *args[MAX_PLAYERS+MAX_SPECS+5];
+    strcpy(arguments[0],"./game");
+    args[0] = arguments[0];
+    char buffer[12]; // 足够存储一个32位整数的字符串表示
+    sprintf(buffer, "%d", room->player_count);
+    args[1] = buffer;
+    
+    for(int i=0; i<room->player_count; i++){
+        sprintf(arguments[i+1],"%d",room->connfd[i]);
+        args[i+2] = arguments[i+1];
+    }
+    for(int i=0; i<room->spec_count; i++){
+        sprintf(arguments[i+1],"%d",room->spec_connfd[i]);
+        args[room->player_count+2+i] = arguments[i+1];
+    }
+    
+    execv("./game",args);
+
+    sleep(5); // Simulate game duration
+    snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
+    for (int i = 0; i < room->player_count; ++i) {
+        Writen(room->connfd[i], sendline, strlen(sendline));
+        Close(room->connfd[i]);
+    }
+    room->player_count = 0; // Reset the room
+    room->spec_count = 0;
+}
+
+int checkRoomAvailability(int room_id) {
+    for (int i = 0; i < room_count; i++) {
+        if (rooms[i].room_id == room_id && rooms[i].player_count < ROOM_CAPACITY && rooms[i].close == 0) {
+            return i; // 返回房間的索引
+        }
+    }
+    return -1; // 沒有找到符合條件的房間
+}
+
 void set_timeout(Room* room, int listenfd){
 // 設置超時等待房主回應
     fd_set readfds;
@@ -81,51 +121,6 @@ void set_timeout(Room* room, int listenfd){
         // 超時未回應，繼續等待玩家加入
         printf("Room %d: The host did not respond in time. Waiting for more players...\n", room->room_id);
     }
-}
-
-void letPlay(Room* room, int listenfd) {
-    char sendline[MAXLINE];
-    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
-    for (int i=0; i < room->player_count; ++i) {
-        Writen(room->connfd[i], sendline, strlen(sendline));
-    }
-
-    // Implement the game logic here...
-    // 參數傳入
-    char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
-    char *args[MAX_PLAYERS+MAX_SPECS+5];
-    strcpy(arguments[0],"./game");
-    args[0] = arguments[0];
-    args[1] = itoa(room->player_count);
-    
-    for(int i=0; i<room->player_count; i++){
-        sprintf(arguments[i+1],"%d",room->connfd[i]);
-        args[i+2] = arguments[i+1];
-    }
-    for(int i=0; i<room->spec_count; i++){
-        sprintf(arguments[i+1],"%d",room->spec_connfd[i]);
-        args[room->player_count+2+i] = arguments[i+1];
-    }
-    
-    execv("./game",args);
-
-    sleep(5); // Simulate game duration
-    snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
-    for (int i = 0; i < room->player_count; ++i) {
-        Writen(room->connfd[i], sendline, strlen(sendline));
-        Close(room->connfd[i]);
-    }
-    room->player_count = 0; // Reset the room
-    room->spec_count = 0;
-}
-
-int checkRoomAvailability(int room_id) {
-    for (int i = 0; i < room_count; i++) {
-        if (rooms[i].room_id == room_id && rooms[i].player_count < ROOM_CAPACITY && rooms[i].close == 0) {
-            return i; // 返回房間的索引
-        }
-    }
-    return -1; // 沒有找到符合條件的房間
 }
 
 int assignAsSpectator(int connfd, char* name, int listenfd) {
@@ -251,7 +246,7 @@ int assignToRoom(int connfd, char* name, int listenfd) {
 int main(){
     int listenfd, maxfdp;
     int n, total_id, connfd[100];
-    char name[100][100], sendline[MAXLINE];
+    char name[100][100], sendline[MAXLINE], recvline[MAXLINE];
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
     fd_set rset, recSet;
@@ -262,7 +257,7 @@ int main(){
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     // port number set?
-    servaddr.sin_port = htons(SERV_PORT+3);
+    servaddr.sin_port = htons(SERV_PORT);
 
     // can reuse ip address
     int optval = 1; 
@@ -302,7 +297,7 @@ int main(){
                 // or ask players to input again (below)
                 while(ok == 0){
                     n = Read(connfd[total_id], name[total_id], 100);
-                    name[total_id][n] = '\0';
+                    name[total_id][n-1] = '\0';
                     printf("Recv: %s\n", name[total_id]);
                     for(int i=0; i<total_id; i++){
                         if(strcmp(name[total_id], name[i]) == 0){
@@ -318,30 +313,35 @@ int main(){
                     }
                 }
                 
-                snprintf(sendline, sizeof(sendline), "You are the #%d user.\n", total_id);
-                Writen(connfd[total_id], sendline, strlen(sendline));
-                snprintf(sendline, sizeof(sendline), "You may now play with computer or wait for other users.\n", total_id);
+                snprintf(sendline, sizeof(sendline), "You are the #%d user. You may now play with computer or wait for other users.\n", total_id);
                 Writen(connfd[total_id], sendline, strlen(sendline));
                 printf("Send: %s is the #%d user.\n", name[total_id], total_id);
 
+                sleep(1);
+                snprintf(sendline, sizeof(sendline), "You can go next.");
+                Writen(connfd[total_id], sendline, strlen(sendline));
+
+
+                n = Read(connfd[total_id], recvline, MAXLINE);
                 // Assign player to a room
-                int selected_room_id = -1;
                 char input[100], input1[100];
-
-                while(1){
-                    snprintf(sendline, sizeof(sendline), "Do you want to join as a player or a spectator? (player/spectator): ");
-                    Writen(connfd, sendline, strlen(sendline));
-                    int n = Read(connfd[total_id], input1, sizeof(input1) - 1);
-                    input1[n] = '\0';
-
-                    if(strcasecmp(input1, "spectator") != 0 && strcasecmp(input1, "player") != 0){
-                        snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
+                if(strcmp(recvline, "can continue") == 0){
+                    while(1){
+                        snprintf(sendline, sizeof(sendline), "Do you want to join as a player or a spectator? (player/spectator): ");
                         Writen(connfd[total_id], sendline, strlen(sendline));
-                    }
-                    else{
-                        break;
+                        int n = Read(connfd[total_id], input1, sizeof(input1) - 1);
+                        input1[n] = '\0';
+
+                        if(strcasecmp(input1, "spectator") != 0 && strcasecmp(input1, "player") != 0){
+                            snprintf(sendline, sizeof(sendline), "Invalid input. Please input again.\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                        }
+                        else{
+                            break;
+                        }
                     }
                 }
+
                 // to be a spectator
                 if(strcasecmp(input1, "spectator") == 0){
                     while(1){
@@ -361,13 +361,18 @@ int main(){
                         input[n] = '\0';
 
                         if (strcasecmp(input, "yes") == 0){
+                            snprintf(sendline, sizeof(sendline), "Yes Success!\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(2);
                             // 如果玩家想加入特定房间，调用函数处理
                             if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd)) break;
-                        }   
+                        }
                         else{
+                            snprintf(sendline, sizeof(sendline), "No Success!\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(2);
                             // 如果玩家不想加入特定房间，直接随机分配
-                            assignToRoom(connfd[total_id], name[total_id], listenfd);
-                            break;
+                            if(assignToRoom(connfd[total_id], name[total_id], listenfd)) break;
                         }
                     }
                 }
