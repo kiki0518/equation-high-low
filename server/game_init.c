@@ -48,7 +48,6 @@ void Initialize_player() {
 }
 
 void deal_cards(int player_index) {
-    char sendline[BUFFER_SIZE];
     snprintf(sendline, sizeof(sendline), "You have been dealt the following cards:\n");
 
     // Deal 4 cards and 3 operators to each player
@@ -59,9 +58,13 @@ void deal_cards(int player_index) {
     }
 
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
-    for (int i = 0; i < 3; i++) {
-        pc[player_index].op[i] = deck_op[rand() % 4];
-        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[i]);
+    int n = rand() % 4;
+    int idx = 0;
+    for(int i = 0; i < 4; i++) {
+        if(n != i)  {
+            pc[player_index].op[idx++] = deck_op[i];
+            snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[idx - 1]);
+        }
     }
 
     if (rand() % 5 == 0) {  // 20% chance to get a root operator
@@ -75,4 +78,5 @@ void deal_cards(int player_index) {
         printf("Error sending message to client %d.\n", pc[player_index].id);
         return;
     }
+    printf("Send: %s\n", sendline);
 }

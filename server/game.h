@@ -35,7 +35,7 @@ struct Player {
 
 extern struct Card deck_num[44];
 extern struct Player pc[MAX_PLAYERS];
-extern char deck_op[5], buffer[BUFFER_SIZE];
+extern char deck_op[5], sendline[BUFFER_SIZE], recvline[BUFFER_SIZE], buffer[BUFFER_SIZE];
 extern int random_array[44], clientFd[MAX_PLAYERS], main_pot[2];
 extern int deal_index, player_count;
 

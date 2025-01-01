@@ -1,23 +1,25 @@
 #include "game.h"
 
 void handle_betting_phase() {
+    printf("Betting phase.\n");
     int max_bet[2] = {0, 0};
     for (int i = 0; i < player_count; i++) {
-        if (pc[i].stat == SPEC) continue;
+        if (pc[i].stat == SPEC) continue;        
+        snprintf(sendline, sizeof(sendline), "Player %d, it's your turn to bet.\nHigh bet: %d\nLow bet: %d\nEnter \'0\': fold\n\'1\':bet high\n\'2\':bet low\n\'3\':bet both high and low\n", pc[i].id, max_bet[HIGH-1], max_bet[LOW-1]);
 
-        char buffer[BUFFER_SIZE];
-        
-        snprintf(buffer, sizeof(buffer), "Player %d, it's your turn to bet.\nHigh bet: %d\nLow bet: %d\nEnter \'0\': fold\n\'1\':bet high\n\'2\':bet low\n\'3\':bet both high and low\n", pc[i].id, max_bet[HIGH-1], max_bet[LOW-1]);
-    
-        if(write(clientFd[i], buffer, strlen(buffer)) < 0) {
-            perror("Error sending message to client");
+        if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
+            printf("Error writing message to client #%d.\n", pc[i].id);
             return;
         }
-        if(read(clientFd[i], buffer, sizeof(buffer)) < 0) {
-            perror("Error reading message from client");
+        printf("Send: %s\n", sendline);
+
+
+        if(read(clientFd[i], recvline, sizeof(recvline)) < 0) {
+            printf("Error reading message from client #%d.\n", pc[i].id);
             return;
         }
-        sscanf(buffer, "%d", &pc[i].stat);
+        printf("Recv: %s\n", recvline);
+        sscanf(recvline, "%d", &pc[i].stat);
 
         if (pc[i].stat == FOLD) {
             snprintf(buffer, sizeof(buffer), "You have folded.\n");
