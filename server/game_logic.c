@@ -3,7 +3,7 @@
 void handle_betting_phase() {
     int max_bet[2] = {0, 0};
     for (int i = 0; i < player_count; i++) {
-        if (pc[i].stat == OBSERVE) continue;
+        if (pc[i].stat == SPEC) continue;
 
         char buffer[BUFFER_SIZE];
         
@@ -31,7 +31,7 @@ void handle_betting_phase() {
                 write(clientFd[i], buffer, strlen(buffer));
                 read(clientFd[i], buffer, sizeof(buffer));
                 sscanf(buffer, "%d", &pc[i].bet[j]);
-                if(!pc[i].bet[j] || pc[i].bet[j] < max_bet[j] && pc[i].bet[j] != pc[i].chips) {
+                if(!pc[i].bet[j] || (pc[i].bet[j] < max_bet[j] && pc[i].bet[j] != pc[i].chips)) {
                     snprintf(buffer, sizeof(buffer), "Invalid bet! You must bet more than oe equal to %d or go All-In.\n", max_bet[j]);
                     write(clientFd[i], buffer, strlen(buffer));
                     i--;

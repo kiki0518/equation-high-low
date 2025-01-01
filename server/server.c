@@ -14,11 +14,11 @@
 #define MAX_ROOMS 10
 #define ROOM_CAPACITY 5
 #define MIN_START_PLAYERS 3
+#define TIMEOUT 120
 // unpv13e/lib/unp.h
 
 int id_idx = 1;
 int ask[100] = {0};
-
 
 typedef struct {
     int player_count;
@@ -51,7 +51,7 @@ void letPlay(Room* room, int listenfd) {
     char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
     char *args[MAX_PLAYERS+MAX_SPECS+5];
 
-    strcpy(arguments[0],"./game_logic");
+    strcpy(arguments[0],"./game");
     args[0] = arguments[0];
 
     char buffer[12]; 
@@ -67,7 +67,7 @@ void letPlay(Room* room, int listenfd) {
         args[room->player_count+2+i] = arguments[i+1];
     }
     
-    execv("./game_logic", args);
+    execv("./game", args);
 
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
@@ -94,7 +94,7 @@ void set_timeout(Room* room, int listenfd){
     fd_set readfds;
     FD_ZERO(&readfds);
     FD_SET(room->connfd[0], &readfds);
-    struct timeval timeout = {30, 0};  // 30秒超時
+    struct timeval timeout = {TIMEOUT, 0};  // 30秒超時
 
     int activity = select(room->connfd[0] + 1, &readfds, NULL, NULL, &timeout);
     if (activity > 0 && FD_ISSET(room->connfd[0], &readfds)) {

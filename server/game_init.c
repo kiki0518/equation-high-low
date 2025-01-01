@@ -1,5 +1,11 @@
 #include "game.h"
 
+struct Card deck_num[44];
+struct Player pc[MAX_PLAYERS];
+char buffer[BUFFER_SIZE], deck_op[5] = {'+', '-', '*', '/', 'R'};
+int random_array[44], clientFd[MAX_PLAYERS], main_pot[2];
+int deal_index, player_count;
+
 void Initialize_random_array() {
     for (int i = 0; i < 44; i++)    random_array[i] = i;
 
@@ -10,17 +16,20 @@ void Initialize_random_array() {
         random_array[i] = random_array[j];
         random_array[j] = temp;
     }
+
+    printf("Initialized random array.\n");
 }
 
 void Initialize_card() {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j <= 10; j++) {
             int index = i * 11 + j;
-            snprintf(deck_num[index].name, sizeof(deck_num[index].name), "%s %d",
-                     (i == 0) ? "Gold" : (i == 1) ? "Silver" : (i == 2) ? "Bronze" : "Iron", j);
+            snprintf(deck_num[index].suit, sizeof(deck_num[index].suit), "%s",
+                     (i == 0) ? "Gold" : (i == 1) ? "Silver" : (i == 2) ? "Bronze" : "Iron");
             deck_num[index].number = j;
         }
     }
+    printf("Initialized deck of cards.\n");
 }
 
 void Initialize_player() {
@@ -33,7 +42,9 @@ void Initialize_player() {
         memset(pc[i].name, 0, sizeof(pc[i].name));
         memset(pc[i].expression, 0, sizeof(pc[i].expression));
         deal_cards(i);
+        printf("Player %d initialized.\n", pc[i].id);
     }
+    printf("Initialized all players.\n");
 }
 
 void deal_cards(int player_index) {
@@ -44,7 +55,7 @@ void deal_cards(int player_index) {
     for (int i = 0; i < 4; i++) {
         int n = random_array[deal_index++];
         pc[player_index].card[i] = deck_num[n];
-        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", deck_num[n].name, deck_num[n].number);
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", pc[player_index].card[i].suit, pc[player_index].card[i].number);
     }
 
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
@@ -59,26 +70,9 @@ void deal_cards(int player_index) {
     } else {
         pc[player_index].op[3] = 0;   // 0 means no operator
     }
-    
-    // Use select to send the dealt cards and operators to the player
-    fd_set writefds;
-    FD_ZERO(&writefds);
-    FD_SET(clientFd[player_index], &writefds);
 
-    struct timeval tv;
-    tv.tv_sec = 5;  // Timeout of 5 seconds
-    tv.tv_usec = 0;
-
-    int retval = select(clientFd[player_index] + 1, NULL, &writefds, NULL, &tv);
-    if (retval == -1) {
-        perror("select error");
-    } else if (retval == 0) {
-        fprintf(stderr, "Timeout occurred! No data sent.\n");
-    } else {
-        if (FD_ISSET(clientFd[player_index], &writefds)) {
-            if (write(clientFd[player_index], sendline, strlen(sendline)) < 0) {
-                perror("Error sending message to client");
-            }
-        }
+    if(write(pc[player_index].fd, sendline, strlen(sendline)) < 0) {
+        printf("Error sending message to client %d.\n", pc[player_index].id);
+        return;
     }
 }
