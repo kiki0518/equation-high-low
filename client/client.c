@@ -94,6 +94,10 @@ int main(int argc, char *argv[]) {
     handle_bet(sockfd);
     input_player_combination(sockfd);
 
+    n = Read(sockfd, recvline, MAXLINE);
+    recvline[n] = '\0';
+    printf("%s", recvline);
+
     
 
     close(sockfd);
@@ -328,7 +332,6 @@ void handle_bet(int sockfd) {
                 response[n] = '\0';
                 if(strncmp(response, "Invalid", 7) == 0){
                     printf("%s", response);
-                    continue;
                     // 再回到while開頭再來一次
                 }
                 else if(strncmp(response, "You bet", 7) == 0){
@@ -357,7 +360,6 @@ void input_player_combination(int sockfd){
                 n = Read(sockfd, recvline, MAXLINE);
                 recvline[n] = '\0';
                 printf("%s", recvline);
-                continue;
             }
         }
     }
