@@ -31,7 +31,7 @@ void spec_distribute(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 void receive_card(int sockfd, Player* player);
-void handle_game(int sock_fd);
+void handle_bet(int sock_fd);
 
 
 int main(int argc, char *argv[]) {
@@ -90,7 +90,8 @@ int main(int argc, char *argv[]) {
     struct Player* player = malloc(sizeof(Player));
     receive_card(sockfd, player);
     // 处理游戏逻辑
-    handle_game(sockfd);
+    handle_bet(sockfd);
+
     
 
     close(sockfd);
@@ -272,7 +273,7 @@ void receive_card(int sockfd, Player *player) {
     }
 }
 
-void handle_game(int sock_fd) {
+void handle_bet(int sock_fd) {
     char buffer[BUFFER_SIZE];
 
     while (1) {
