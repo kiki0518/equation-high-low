@@ -17,37 +17,59 @@ void input_name(int sockfd);
 void choose_identity(int sockfd);
 void player_distribute(int sockfd);
 void spec_distribute(int sockfd);
-void check_start(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 void handle_game(int sock_fd);
 
 
 int main(int argc, char *argv[]) {
-    int n, sockfd;
+    int n, maxfdp = 0, sockfd;
     struct sockaddr_in servaddr;
-    char sendline[MAXLINE];
+    char sendline[MAXLINE], recvline[MAXLINE], choice[100];
+    fd_set rset, recSet;
 
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <Server IP Address>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
+    // initialize
     sockfd = Socket(AF_INET, SOCK_STREAM, 0);
-
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(SERV_PORT);
 	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
-
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
-
     printf("Connected to the server.\n");
-
+    // send name & identity
     input_name(sockfd);
+
+    snprintf(sendline, sizeof(sendline), "can continue");
+    Writen(sockfd, sendline, strlen(sendline));
+    sleep(2);
+
     choose_identity(sockfd);
 
-    check_start(sockfd);
+    FD_ZERO(&recSet);
+    FD_SET(sockfd, &recSet);
+    maxfdp = sockfd + 1;
+    for( ; ; ){
+        rset = recSet;
+        select(maxfdp, &rset, NULL, NULL, NULL);
+        if(FD_ISSET(sockfd, &rset)){
+            n = Read(sockfd, recvline, MAXLINE);
+            recvline[n] = '\0';
+            if(strcmp(recvline, "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ") == 0){
+                printf("%s", recvline);
+                if(Fgets(choice, MAXLINE, stdin) != NULL){
+                    Writen(sockfd, choice, strlen(recvline));
+                }
+            }
+            else if(strcmp(recvline, "Let start the game.") == 0){
+                printf("%s\n", recvline);
+            }
+        }
+    }
     // 处理游戏逻辑
     handle_game(sockfd);
     
@@ -125,14 +147,10 @@ void player_distribute(int sockfd){
             if(Fgets(choice, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, choice, strlen(choice));
         }
-        else if(strcmp(recvline, "Yes Success!\n") == 0){
-            snprintf(sendline, sizeof(sendline), "I know.");
-            Writen(sockfd, sendline, strlen(sendline));
+        else if(strcmp(recvline, "Yes Success!") == 0){
             break;
         }
-        else if(strcmp(recvline, "No Success!\n") == 0){
-            snprintf(sendline, sizeof(sendline), "I know.");
-            Writen(sockfd, sendline, strlen(sendline));
+        else if(strcmp(recvline, "No Success!") == 0){
             break;
         }
         else if(strcmp(recvline, "Please enter the room ID you'd like to join: ") == 0){
@@ -152,7 +170,7 @@ void spec_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Please enter the room ID you'd like to spectate: ") == 0){
             printf("==================================================\n");
@@ -160,44 +178,13 @@ void spec_distribute(int sockfd){
             if(Fgets(choice, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, choice, strlen(choice));
         }
-        else if(strcmp(recvline, "Yes Success!\n") == 0){
+        else if(strcmp(recvline, "Spec Success!\n") == 0){
             snprintf(sendline, sizeof(sendline), "I know.");
             Writen(sockfd, sendline, strlen(sendline));
             break;
-        }
-        else if(strcmp(recvline, "No Success!\n") == 0){
-            snprintf(sendline, sizeof(sendline), "I know.");
-            Writen(sockfd, sendline, strlen(sendline));
-            break;
-        }
-        else if(strcmp(recvline, "Please enter the room ID you'd like to join: ") == 0){
-            printf("%s", recvline);
-            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
-            Writen(sockfd, choice, strlen(choice));
         }
         else{
             printf("%s", recvline);
-        }
-    }
-}
-
-void check_start(int sockfd){
-    int n;
-    char choice[100], sendline[MAXLINE], recvline[MAXLINE];
-    while(1){
-        n = Read(sockfd, recvline, MAXLINE);
-        recvline[n] = '\0';
-        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
-
-        if(strcmp(recvline, "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ") == 0){
-            //printf("==================================================\n");
-            printf("%s", recvline);
-            if(Fgets(choice, MAXLINE, stdin) == NULL) return;
-            Writen(sockfd, choice, strlen(choice));
-        }
-        else if(strcmp(recvline, "Let start the game.") == 0){
-            sleep(2);
-            break;
         }
     }
 }
