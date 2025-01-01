@@ -1,0 +1,17 @@
+
+[Thu Nov  7 18:55:49 2024] recvfrom 127.0.0.1, port 59842: 11 112550015 127.0.0.1
+replied: 5 112550015 127.0.0.1
+
+[Thu Nov  7 18:55:49 2024] recvfrom 127.0.0.1, port 9880: 13 112550015 9880
+got code 13, proceed
+Connection 0 (port #51248): written 533
+port and value match, ok sent!
+Connection 1 (port #51249): written 17
+port and value match, ok sent!
+Connection 2 (port #51250): written 921
+port and value match, ok sent!
+Connection 3 (port #51251): written 298
+port and value match, ok sent!
+Connection 4 (port #51252): written 33
+port and value match, ok sent!
+[Thu Nov  7 18:55:49 2024] sendto 127.0.0.1, port 59842: ok.
