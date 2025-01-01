@@ -227,9 +227,10 @@ void receive_card(int sockfd, Player *player) {
         return;
     }
     buffer[bytes_received] = '\0';
+    printf("%s", buffer);
 
     // 使用\n作為分隔符，將字串切割成多個部分
-    char *line = strtok(buffer, "\n");
+    /*char *line = strtok(buffer, "\n");
     int card_index = 0;
     int op_index = 0;
 
@@ -276,7 +277,7 @@ void receive_card(int sockfd, Player *player) {
     }
     for(int i = 0; i < op_index; i++){
         printf("Operator %d: %s\n", i + 1, player->op[i]);
-    }
+    }*/
 }
 
 void handle_bet(int sockfd) {
@@ -287,10 +288,8 @@ void handle_bet(int sockfd) {
         read_from_server(sockfd, recvline);
         printf("%s", recvline);
         // get player's state
-        while(Fgets(choice, MAXLINE, stdin) != NULL){
+        if(Fgets(choice, MAXLINE, stdin) != NULL){
             Writen(sockfd, choice, strlen(choice));
-            break;
-        }
             //else printf("Invalid input. Please try again (0: fold, 1: bet high 2: bet low 3: bet both high and low): ");
         }
 
@@ -321,7 +320,7 @@ void handle_bet(int sockfd) {
         if(strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
             n = Read(sockfd, sizeof(recvline), MAXLINE);
             recvline[n] = '\0';
-            if(strcmp(recvline, "Enter your bet for low: ") == 0){
+            /*if(strcmp(recvline, "Enter your bet for low: ") == 0){
                 printf("%s", recvline);
                 if(Fgets(sendline, MAXLINE, stdin) != NULL){
                     Writen(sockfd, choice, strlen(choice));
@@ -335,6 +334,20 @@ void handle_bet(int sockfd) {
                 else if(strncmp(response, "You bet", 7) == 0){
                     printf("%s", response);
                 }
+            }*/
+            printf("%s", recvline);
+            if(Fgets(sendline, MAXLINE, stdin) != NULL){
+                Writen(sockfd, choice, strlen(choice));
+            }
+            n = Read(sockfd, sizeof(response), MAXLINE);
+            response[n] = '\0';
+            if(strncmp(response, "Invalid", 7) == 0){
+                printf("%s", response);
+                continue;
+                // 再回到while開頭再來一次
+            }
+            else if(strncmp(response, "You bet", 7) == 0){
+                printf("%s", response);
             }
         }
     }
