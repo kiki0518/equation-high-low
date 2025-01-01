@@ -234,7 +234,7 @@ void receive_card(int sockfd, Player *player) {
     printf("%s", buffer);
 
     // 使用\n作為分隔符，將字串切割成多個部分
-    /*char *line = strtok(buffer, "\n");
+    //char *line = strtok(buffer, "\n");
     int card_index = 0;
     int op_index = 0;
 
@@ -286,50 +286,40 @@ void receive_card(int sockfd, Player *player) {
 
 void handle_bet(int sockfd) {
     int n;
-    char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
+    char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[20], response[MAXLINE];
 
-    while (1){
         read_from_server(sockfd, recvline);
         printf("%s", recvline);
         // get player's state
         if (Fgets(choice, sizeof(choice), stdin) != NULL) {
             // 确保输入内容以 '\0' 结尾
-            choice[strcspn(choice, "\n")] = '\0'; // 将换行符替换为 '\0'
+            choice[sizeof(choice)] = '\0'; // 将换行符替换为 '\0'
             Writen(sockfd, choice, strlen(choice));
         } else {
             // 如果输入无效，初始化为空字符串
             choice[0] = '\0';
         }
-       printf("Distribute Debug: recvline = '%s', length = %zu\n", choice, strlen(choice));
-        if(strcmp(choice, "0") == 0){
+       //printf("Distribute Debug: recvline = '%s', length = %zu\n", choice, strlen(choice));
+       /* if(strcmp(choice, "0") == 0){
             n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             printf("%s", recvline);
-        }
-        if(strcmp(choice, "1") == 0 || strcmp(choice, "3") == 0){
-            printf("Are you in?\n");
+        }*/
+        //if(strcmp(choice, "1") == 0 || strcmp(choice, "3") == 0){
             n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             printf("%s", recvline);
             if(Fgets(sendline, MAXLINE, stdin) != NULL){
-                Writen(sockfd, choice, strlen(choice));
+                Writen(sockfd, sendline, strlen(sendline));
             }
             n = Read(sockfd, response, MAXLINE);
             response[n] = '\0';
-            if(strncmp(response, "Invalid", 7) == 0){
-                printf("%s", response);
-                continue;
-                // 再回到while開頭再來一次
-            }
-            else if(strncmp(response, "You bet", 7) == 0){
-                printf("%s", response);
-                break;
-            }
-        }
+            printf("%s", response);
+        
 
-        if(strcmp(choice, "2") == 0 || strcmp(choice, "3") == 0){
-            n = Read(sockfd, recvline, MAXLINE);
-            recvline[n] = '\0';
+        //if(strcmp(choice, "2") == 0 || strcmp(choice, "3") == 0){
+            //n = Read(sockfd, recvline, MAXLINE);
+            //recvline[n] = '\0';
             /*if(strcmp(recvline, "Enter your bet for low: ") == 0){
                 printf("%s", recvline);
                 if(Fgets(sendline, MAXLINE, stdin) != NULL){
@@ -345,49 +335,39 @@ void handle_bet(int sockfd) {
                     printf("%s", response);
                 }
             }*/
-            printf("%s", recvline);
+            /*printf("%s", recvline);
             if(Fgets(sendline, MAXLINE, stdin) != NULL){
-                Writen(sockfd, choice, strlen(choice));
+                Writen(sockfd, sendline, strlen(sendline));
             }
             n = Read(sockfd, response, MAXLINE);
             response[n] = '\0';
-            if(strncmp(response, "Invalid", 7) == 0){
-                printf("%s", response);
-                continue;
-                // 再回到while開頭再來一次
-            }
-            else if(strncmp(response, "You bet", 7) == 0){
-                printf("%s", response);
-                break;
-            }
-        }
-    }
-    }
+            printf("%s", response);*/
+        //}
+    
+}
 
 
 void input_player_combination(int sockfd){
     int n;
-    char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
+    char recvline[BUFFER_SIZE], choice[10];
 
-    while (1){
+    //while (1){
         read_from_server(sockfd, recvline);
         printf("%s", recvline);
         // get player's state
         if(Fgets(choice, MAXLINE, stdin) != NULL){
-            if(strncmp(choice[0], "H", 1) == 0 || strncmp(choice[0], "L", 1) == 0){
+            //if(strncmp(&choice[0], "H", 1) == 0 || strncmp(&choice[0], "L", 1) == 0){
                 Writen(sockfd, choice, strlen(choice));
-                break;
-            }
-            else{
+                //break;
+            //}
+            /*else{
                 n = Read(sockfd, recvline, MAXLINE);
                 recvline[n] = '\0';
                 printf("%s", recvline);
-            }
+            }*/
         }
-    }
+    //}
 }
-
-
 
 void read_from_server(int sock_fd, char *buffer) {
     memset(buffer, 0, BUFFER_SIZE);
