@@ -94,7 +94,7 @@ void set_timeout(Room* room, int listenfd){
     fd_set readfds;
     FD_ZERO(&readfds);
     FD_SET(room->connfd[0], &readfds);
-    struct timeval timeout = {30, 0};  // 30秒超時
+    struct timeval timeout = {120, 0};  // 30秒超時
 
     int activity = select(room->connfd[0] + 1, &readfds, NULL, NULL, &timeout);
     if (activity > 0 && FD_ISSET(room->connfd[0], &readfds)) {
@@ -126,7 +126,7 @@ void set_timeout(Room* room, int listenfd){
         else{
             printf(sendline, sizeof(sendline), "Room %d: The host inputs Invalid input.", room->room_id);
         }
-    } 
+    }
     else{
         // 超時未回應，繼續等待玩家加入
         printf("Room %d: The host did not respond in time. Waiting for more players...\n", room->room_id);
