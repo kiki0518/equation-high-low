@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
             }
             else if(strcmp(recvline, "Let start the game.") == 0){
                 printf("%s\n", recvline);
+                break;
             }
         }
     }
@@ -139,7 +140,7 @@ void player_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Do you want to join a specific room? (yes/no): ") == 0){
             printf("==================================================\n");
@@ -157,6 +158,9 @@ void player_distribute(int sockfd){
             printf("%s", recvline);
             if(Fgets(choice, MAXLINE, stdin) == NULL) return;
             Writen(sockfd, choice, strlen(choice));
+        }
+        else if(strcmp(recvline, "Invalid input. Please try again.\n") == 0){
+            printf("%s", recvline);
         }
         else{
             printf("%s", recvline);
