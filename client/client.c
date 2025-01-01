@@ -32,7 +32,7 @@ void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 void receive_card(int sockfd, Player* player);
 void handle_bet(int sockfd);
-void input_player_combination(int sockfd, Player* player);
+void input_player_combination(int sockfd);
 
 
 int main(int argc, char *argv[]) {
@@ -92,6 +92,7 @@ int main(int argc, char *argv[]) {
     receive_card(sockfd, player);
     // 处理游戏逻辑
     handle_bet(sockfd);
+    input_player_combination(sockfd);
 
     
 
@@ -313,8 +314,8 @@ void handle_bet(int sockfd) {
             else if(strncmp(response, "You bet", 7) == 0){
                 printf("%s", response);
             }
-            }
         }
+
         if(strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
             n = Read(sockfd, sizeof(recvline), MAXLINE);
             recvline[n] = '\0';
@@ -336,9 +337,10 @@ void handle_bet(int sockfd) {
             }
         }
     }
-}
+    }
 
-void input_player_combination(int sockfd, Player* player){
+
+void input_player_combination(int sockfd){
     int n;
     char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
 
