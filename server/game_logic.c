@@ -8,6 +8,9 @@
 #include <time.h>
 #include <math.h>
 #include <fcntl.h>
+#include <ctype.h>
+#include "unpv13e/lib/unp.h"
+
 
 #define MAX_PLAYERS 3
 #define BUFFER_SIZE 1024
@@ -66,25 +69,59 @@ void Initialize_card() {
         for (int j = 0; j <= 10; j++) {
             int index = i * 11 + j;
             snprintf(deck_num[index].name, sizeof(deck_num[index].name), "%s %d",
-                     (i == 0) ? "Hearts" : (i == 1) ? "Diamonds" : (i == 2) ? "Clubs" : "Spades", j);
+                     (i == 0) ? "Gold" : (i == 1) ? "Silver" : (i == 2) ? "Bronze" : "Iron", j);
             deck_num[index].number = j;
         }
     }
 }
 
 void deal_cards(int player_index) {
+    char sendline[BUFFER_SIZE];
+    snprintf(sendline, sizeof(sendline), "You have been dealt the following cards:\n");
+
     // Deal 4 cards and 3 operators to each player
     for (int i = 0; i < 4; i++) {
         int n = random_array[deal_index++];
         pc[player_index].card[i] = deck_num[n];
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", deck_num[n].name, deck_num[n].number);
     }
+
+    snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
     for (int i = 0; i < 3; i++) {
         pc[player_index].op[i] = deck_op[rand() % 4];
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c ", pc[player_index].op[i]);
     }
-    if (rand() % 5 == 0) {  // 20% chance to get an root operator
+
+    if (rand() % 5 == 0) {  // 20% chance to get a root operator
         pc[player_index].op[3] = deck_op[4];
-    } 
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[3]);
+    } else {
+        pc[player_index].op[3] = 0;   // 0 means no operator
+    }
+    
+     // Use select to send the dealt cards and operators to the player
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(clientFd[player_index], &writefds);
+
+    struct timeval tv;
+    tv.tv_sec = 5;  // Timeout of 5 seconds
+    tv.tv_usec = 0;
+
+    int retval = select(clientFd[player_index] + 1, NULL, &writefds, NULL, &tv);
+    if (retval == -1) {
+        perror("select error");
+    } else if (retval == 0) {
+        fprintf(stderr, "Timeout occurred! No data sent.\n");
+    } else {
+        if (FD_ISSET(clientFd[player_index], &writefds)) {
+            if (write(clientFd[player_index], sendline, strlen(sendline)) < 0) {
+                perror("Error sending message to client");
+            }
+        }
+    }
 }
+
 
 void handle_betting_phase(int *main_pot) {
     int max_bet = 0;
@@ -92,16 +129,26 @@ void handle_betting_phase(int *main_pot) {
         if (pc[i].folded) continue;
 
         char buffer[BUFFER_SIZE];
-        snprintf(buffer, sizeof(buffer), "Player %d, it's your turn to bet. Max bet: %d, your chips: %d.\n",
+        snprintf(buffer, sizeof(buffer), "Player %d, it's your turn to bet. Max bet: %d, your chips: %d.\n(Enter two integers separated by space: high bet and low bet)\n",
                  pc[i].id, max_bet, pc[i].chips);
-        write(clientFd[i], buffer, strlen(buffer));
+        // write, and if timeout, print error message and end the game
+        if(write(clientFd[i], buffer, strlen(buffer)) < 0) {
+            perror("Error sending message to client");
+            return;
+        }
 
-        read(clientFd[i], buffer, sizeof(buffer));
+        if(read(clientFd[i], buffer, sizeof(buffer)) < 0) {
+            perror("Error reading message from client");
+            return;
+        }
 
         if (strncmp(buffer, "fold", 4) == 0) {
             pc[i].folded = true;
             snprintf(buffer, sizeof(buffer), "Player %d folded. You are out of this round.\n", pc[i].id);
-            write(clientFd[i], buffer, strlen(buffer));
+            if(write(clientFd[i], buffer, strlen(buffer)) < 0) {
+                perror("Error sending message to client");
+                return;
+            }
             continue;
         }
 
@@ -110,7 +157,8 @@ void handle_betting_phase(int *main_pot) {
 
         if (bet_high < max_bet && bet_high != pc[i].chips) {
             snprintf(buffer, sizeof(buffer), "Invalid high bet! You must bet more than %d or go All-In.\n", max_bet);
-            write(clientFd[i], buffer, strlen(buffer));
+            //write(clientFd[i], buffer, strlen(buffer));
+            Write(clientFd[i], buffer, strlen(buffer));
             i--;
             continue;
         }
@@ -130,7 +178,8 @@ void handle_betting_phase(int *main_pot) {
 
         snprintf(buffer, sizeof(buffer), "You bet %d chips on high and %d chips on low. Remaining chips: %d.\n",
                  bet_high, bet_low, pc[i].chips);
-        write(clientFd[i], buffer, strlen(buffer));
+        //write(clientFd[i], buffer, strlen(buffer));
+        Write(clientFd[i], buffer, strlen(buffer));
     }
 }
 
@@ -286,9 +335,11 @@ void input_player_combination() {
         char buffer[BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer), "Player %d, enter your expressions: first for high bet, second for low bet.\nExample: R4-5+2*3 (High Bet)\nExample: 5+R9-3*2 (Low Bet)\n\nOperator priority:\n1. Root (R)\n2. Multiplication (*) and Division (/)\n3. Addition (+) and Subtraction (-)\n",
                  pc[i].id);
-        write(clientFd[i], buffer, strlen(buffer));
+        //write(clientFd[i], buffer, strlen(buffer));
+        Write(clientFd[i], buffer, strlen(buffer));
 
-        read(clientFd[i], buffer, sizeof(buffer));
+        //read(clientFd[i], buffer, sizeof(buffer));
+        Read(clientFd[i], buffer, sizeof(buffer));
         sscanf(buffer, "%s %s", pc[i].expression_high, pc[i].expression_low);
     }
 }
@@ -304,10 +355,17 @@ void start_game() {
 }
 
 int main(int argc, char *argv[]) {
-    for (int i = 0; i < argc - 1; i++) {
+    /*for (int i = 0; i < argc - 1; i++) {
         clientFd[i] = atoi(argv[i + 1]);
+    }*/
+   char sendline[100];
+   player_count = atoi(argv[1]);
+   for (int i = 0; i < player_count; i++) {
+        clientFd[i] = atoi(argv[i + 2]);
+        snprintf(sendline, sizeof(sendline), "Test parameter.");
+        Writen(clientFd[i], sendline, strlen(sendline));
     }
-    player_count = argc - 1;
+    //player_count = argc - 1;
     start_game();
     return 0;
 }
