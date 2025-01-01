@@ -51,7 +51,7 @@ void letPlay(Room* room, int listenfd) {
     char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
     char *args[MAX_PLAYERS+MAX_SPECS+5];
 
-    strcpy(arguments[0],"./game_logic");
+    strcpy(arguments[0],"./game");
     args[0] = arguments[0];
 
     char buffer[12]; 
@@ -67,7 +67,7 @@ void letPlay(Room* room, int listenfd) {
         args[room->player_count+2+i] = arguments[i+1];
     }
     
-    execv("./game_logic", args);
+    execv("./game", args);
 
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);

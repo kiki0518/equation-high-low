@@ -14,15 +14,16 @@
 #include <sys/select.h>
 #include <fcntl.h>
 
-#define MAX_PLAYERS 3
+#define MAX_PLAYERS 5
 #define BUFFER_SIZE 1024
+#define TIMEOUT 120
 #define HIGH 1
 #define LOW 2
 #define FOLD 0
-#define OBSERVE -1
+#define SPEC -1
 
 struct Card {
-    char name[40];
+    char suit[10];
     int number;
 };
 

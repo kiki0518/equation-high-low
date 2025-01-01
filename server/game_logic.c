@@ -3,7 +3,7 @@
 void handle_betting_phase() {
     int max_bet[2] = {0, 0};
     for (int i = 0; i < player_count; i++) {
-        if (pc[i].stat == OBSERVE) continue;
+        if (pc[i].stat == SPEC) continue;
 
         char buffer[BUFFER_SIZE];
         
