@@ -145,7 +145,7 @@ double evaluate_expression(const char *exp) {
     return result;
 }
 
-void determine_winners(int *main_pot) {
+void determine_winners() {
     double best_val[2] = {1e9, 1e9};
     int winner[2] = {-1, -1};
 
@@ -164,21 +164,11 @@ void determine_winners(int *main_pot) {
 
     for(int j = 0; j < 2; j++) {
         if(winner[j] != -1) {
-            pc[winner[j]].chips += *main_pot;
-            snprintf(buffer, sizeof(buffer), "Player %d wins %s bet with expression %s. Result: %.2f\n", pc[winner[j]].id, j == 0 ? "high" : "low", pc[winner[j].expression[j]], best_val[j]);
+            pc[winner[j]].chips += main_pot[j] + pc[winner[j]].bet[j];
+            snprintf(buffer, sizeof(buffer), "Player %d wins the %s bet with a value of %.2f.\n", pc[winner[j]].id, j == 0 ? "high" : "low", best_val[j]);
             broadcast_message(buffer);
         }
     }
-
-    if (winner_high != -1) {
-        pc[winner_high].chips += pc[winner_high].bet_high * 2; // High bet payout
-    }
-
-    if (winner_low != -1) {
-        pc[winner_low].chips += pc[winner_low].bet_low * 2; // Low bet payout
-    }
-
-    *main_pot = 0; // Reset main pot after payout
 }
 
 void input_player_combination() {
@@ -187,14 +177,13 @@ void input_player_combination() {
     int max_fd = 0;
 
     for (int i = 0; i < player_count; i++) {
-        if (pc[i].folded) continue;
+        if (pc[i].stat == FOLD) continue;
 
-        char buffer[BUFFER_SIZE];
-        snprintf(buffer, sizeof(buffer), "Player %d, enter your expressions: first for high bet, second for low bet.\nExample: R4-5+2*3 (High Bet)\nExample: 5+R9-3*2 (Low Bet)\n\nOperator priority:\n1. Root (R)\n2. Multiplication (*) and Division (/)\n3. Addition (+) and Subtraction (-)\n",
+        snprintf(buffer, sizeof(buffer), 
+        "Player %d, enter your expressions. Enter \"H:\" before the high expression and \"L:\" before the low expression.\nExample: H:R4-5+2*3\n\nOperator priority:\n1. Root (R)\n2. Multiplication (*) and Division (/)\n3. Addition (+) and Subtraction (-)\n",
                  pc[i].id);
         write(clientFd[i], buffer, strlen(buffer));
 
-        // Set the socket to non-blocking mode
         int flags = fcntl(clientFd[i], F_GETFL, 0);
         fcntl(clientFd[i], F_SETFL, flags | O_NONBLOCK);
 
@@ -212,18 +201,27 @@ void input_player_combination() {
             bool used_operators[4] = {false};
 
             read(clientFd[i], buffer, sizeof(buffer));
-            sscanf(buffer, "%s %s", pc[i].expression_high, pc[i].expression_low);
+            if(strstr(buffer, "H:") == NULL || strstr(buffer, "L:") == NULL) {
+                snprintf(buffer, sizeof(buffer), "Invalid expressions. Please include both high and low expressions.\n");
+                write(clientFd[i], buffer, strlen(buffer));
+                i--;
+                continue;
+            }                
+            
+            if(buffer[0] == 'H') {
+                sscanf(buffer, "H:%s", pc[i].expression[0]);
+            } else {
+                sscanf(buffer, "L:%s", pc[i].expression[1]);
+            }
 
             // Check if the expressions contain player's hand symbols
-            bool valid_high = true, valid_low = true;
+            /*bool valid[2] = {true, true};
             for (int j = 0; j < 4; j++) {
-                if (strstr(pc[i].expression_high, pc[i].card[j].name) == NULL) {
-                    valid_high = false;
-                    break;
-                }
-                if (strstr(pc[i].expression_low, pc[i].card[j].name) == NULL) {
-                    valid_low = false;
-                    break;
+                for(int k = 0; k < 2; k++) {
+                    if (strstr(pc[i].expression[k], pc[i].card[j].name) == NULL) {
+                        valid[k] = false;
+                        break;
+                    }
                 }
             }
 
@@ -237,34 +235,21 @@ void input_player_combination() {
             }
 
             // TODO: Handle division by zero, maybe need to tell the player to re-enter the expression
-            for(int j = 0; j < 4; j++) {
-                if(pc[i].expression_high[j] == '/' && pc[i].expression_high[j + 1] == '0') {
-                    snprintf(buffer, sizeof(buffer), "Invalid expression. Cannot take division by zero.\n");
-                    write(clientFd[i], buffer, strlen(buffer));
-                    i--;
-                    break;
-                }
-            }
-
-            for(int j = 0; j < 4; j++) {
-                if(pc[i].expression_low[j] == '/' && pc[i].expression_low[j + 1] == '0') {
-                    snprintf(buffer, sizeof(buffer), "Invalid expression. Cannot take division by zero.\n");
-                    write(clientFd[i], buffer, strlen(buffer));
-                    i--;
-                    break;
-                }
-            }
-
+            for(int j = 0; j < 2; j++) {
+                for(int k = 0; k < 4; k++) {
+                    if(pc[i].expression[j][k] == '/' && pc[i].expression[j][k + 1] == '0') {
+                        snprintf(buffer, sizeof(buffer), "Invalid expression. Cannot take division by zero.\n");
+                        write(clientFd[i], buffer, strlen(buffer));
+                        i--;
+                        break;
+                    }
+            }*/
+            
         } else if (activity == 0) {
             printf("Player %d timed out.\n", pc[i].id);
-            pc[i].folded = true;
-            // send message to player to tell them they have been folded
-
+            pc[i].stat = FOLD;
             snprintf(buffer, sizeof(buffer), "You have been folded due to timeout.\n");
             write(clientFd[i], buffer, strlen(buffer));
-
-            // You can set default values or take other actions here
-
         }
     }
 }
