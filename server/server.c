@@ -3,7 +3,6 @@
 #include <string.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <fcntl.h>
 #include "unpv13e/lib/unp.h"
 #include <unistd.h>
 #include <signal.h>
@@ -50,8 +49,10 @@ void letPlay(Room* room, int listenfd) {
     // 參數傳入
     char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
     char *args[MAX_PLAYERS+MAX_SPECS+5];
+
     strcpy(arguments[0],"./game_logic");
     args[0] = arguments[0];
+
     char buffer[12]; 
     sprintf(buffer, "%d", room->player_count);
     args[1] = buffer;
@@ -106,7 +107,7 @@ void set_timeout(Room* room, int listenfd){
             // 房主選擇開始遊戲
             printf("Room %d: The host has started the game.\n", room->room_id);
             room->close = 1;
-            snprintf(sendline, sizeof(sendline), "Let start the game.");
+            snprintf(sendline, sizeof(sendline), "\nLet start the game.");
             for(int i=0; i<room->player_count; i++){
                 Writen(room->connfd[i], sendline, strlen(sendline));
             }
@@ -406,6 +407,7 @@ int main(){
                         else{
                             snprintf(sendline, sizeof(sendline), "Invalid input. Please try again.\n");
                             Writen(connfd[total_id], sendline, strlen(sendline));
+                            sleep(2);
                         }
                     }
                 }
@@ -430,10 +432,9 @@ int main(){
                 Writen(rooms[i].connfd[0], sendline, strlen(sendline));
                 ask[i] = 0;
                 sleep(5);
+                // include letPlay();
                 set_timeout(&rooms[i], listenfd);
                 break;
-                    
-                
             }
         }
     }
