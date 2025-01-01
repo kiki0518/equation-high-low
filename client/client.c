@@ -288,12 +288,10 @@ void handle_bet(int sockfd) {
         printf("%s", recvline);
         // get player's state
         while(Fgets(choice, MAXLINE, stdin) != NULL){
-            if(strcmp(choice, "0\n") == 0 || strcmp(choice, "1\n") == 0 ||
-               strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
-                Writen(sockfd, choice, strlen(choice));
-                break;
-            }
-            else printf("Invalid input. Please try again (0: fold, 1: bet high 2: bet low 3: bet both high and low): ");
+            Writen(sockfd, choice, strlen(choice));
+            break;
+        }
+            //else printf("Invalid input. Please try again (0: fold, 1: bet high 2: bet low 3: bet both high and low): ");
         }
 
         if(strcmp(choice, "0\n") == 0){
