@@ -1,51 +1,74 @@
 #include "game.h"
 
-void handle_betting_phase() {
+void betting() {
     printf("Betting phase.\n");
     int max_bet[2] = {0, 0};
-    for (int i = 0; i < player_count; i++) {
+    for (int i = 0; i < clicnt; i++) {
         if (pc[i].stat == SPEC) continue;        
-        snprintf(sendline, sizeof(sendline), "Player %d, it's your turn to bet.\nHigh bet: %d\nLow bet: %d\nEnter \'0\': fold\n\'1\':bet high\n\'2\':bet low\n\'3\':bet both high and low\n", pc[i].id, max_bet[HIGH-1], max_bet[LOW-1]);
-
+        snprintf(sendline, sizeof(sendline), "Player %d, it's your turn to bet. High bet: %d   Low bet: %d\nPlease enter your bet number (0: Fold, 1: High, 2: Low, 3:Both):", pc[i].id, max_bet[HIGH-1], max_bet[LOW-1]);
         if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
             printf("Error writing message to client #%d.\n", pc[i].id);
             return;
         }
         printf("Send: %s\n", sendline);
 
-
-        if(read(clientFd[i], recvline, sizeof(recvline)) < 0) {
+        if(n = read(clientFd[i], recvline, sizeof(recvline)) < 0) {
             printf("Error reading message from client #%d.\n", pc[i].id);
             return;
         }
+
+        recvline[n-1] = '\0';
         printf("Recv: %s\n", recvline);
-        sscanf(recvline, "%d", &pc[i].stat);
+        sscanf(recvline, "%d\n", &pc[i].stat);
 
         if (pc[i].stat == FOLD) {
-            snprintf(buffer, sizeof(buffer), "You have folded.\n");
-            write(clientFd[i], buffer, strlen(buffer));
+            snprintf(sendline, sizeof(sendline), "You have folded.\n");
+            if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
+                printf("Error writing message to client #%d.\n", pc[i].id);
+                return;
+            }
+            printf("Send: %s\n", sendline);
             continue;
         }
 
         for(int j = 0; j < 2; j++) {
             if(pc[i].stat & (1 << j)) {
-                snprintf(buffer, sizeof(buffer), "Enter your bet for %s: ", j == 0 ? "high" : "low");
-                write(clientFd[i], buffer, strlen(buffer));
-                read(clientFd[i], buffer, sizeof(buffer));
-                sscanf(buffer, "%d", &pc[i].bet[j]);
+                snprintf(sendline, sizeof(sendline), "Enter your bet for %s: ", j == 0 ? "high" : "low");
+                if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
+                    printf("Error writing message to client #%d.\n", pc[i].id);
+                    return;
+                }
+                printf("Send: %s\n", sendline);
+                
+                if(n = read(clientFd[i], recvline, sizeof(recvline)) < 0) {
+                    printf("Error reading message from client #%d.\n", pc[i].id);
+                    return;
+                }
+                recvline[n-1] = '\0';
+                printf("Recv: %s\n", recvline);
+                sscanf(recvline, "%d", &pc[i].bet[j]);
+                
                 if(!pc[i].bet[j] || (pc[i].bet[j] < max_bet[j] && pc[i].bet[j] != pc[i].chips)) {
-                    snprintf(buffer, sizeof(buffer), "Invalid bet! You must bet more than oe equal to %d or go All-In.\n", max_bet[j]);
-                    write(clientFd[i], buffer, strlen(buffer));
+                    snprintf(sendline, sizeof(sendline), "Invalid bet! You must bet more than or equal to %d or go All-In.\n", max_bet[j]);
+                    if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
+                        printf("Error writing message to client #%d.\n", pc[i].id);
+                        return;
+                    }
+                    printf("Send: %s\n", sendline);
                     i--;
                     break;
-                } else {
-                    max_bet[j] = max_bet[j] < pc[i].bet[j] ? pc[i].bet[j] : max_bet[j];
-                }
+                } 
+                
+                max_bet[j] = max_bet[j] < pc[i].bet[j] ? pc[i].bet[j] : max_bet[j];
                 pc[i].chips -= pc[i].bet[j];
                 main_pot[j] += pc[i].bet[j];
 
-                snprintf(buffer, sizeof(buffer), "You bet %d chips on %s. Remaining chips: %d.\n", pc[i].bet[j], j == 0 ? "high" : "low", pc[i].chips);
-                write(clientFd[i], buffer, strlen(buffer));
+                snprintf(sendline, sizeof(sendline), "You bet %d chips on %s. Remaining chips: %d.\n", pc[i].bet[j], j == 0 ? "high" : "low", pc[i].chips);
+                if(write(clientFd[i], sendline, strlen(sendline)) < 0) {
+                    printf("Error writing message to client #%d.\n", pc[i].id);
+                    return;
+                }
+                printf("Send: %s\n", sendline);
             }
         }
     }
@@ -56,13 +79,13 @@ void broadcast_message(const char *message){
     FD_ZERO(&writefds);
 
     int max_fd = 0;
-    for (int i = 0; i < player_count; i++) {
+    for (int i = 0; i < clicnt; i++) {
         FD_SET(clientFd[i], &writefds);
         if (clientFd[i] > max_fd) max_fd = clientFd[i];
     }
 
     struct timeval timeout;
-    timeout.tv_sec = 1;
+    timeout.tv_sec = TIMEOUT;
     timeout.tv_usec = 0;
 
     int activity = select(max_fd + 1, NULL, &writefds, NULL, &timeout);
@@ -71,7 +94,7 @@ void broadcast_message(const char *message){
         return;
     }
 
-    for (int i = 0; i < player_count; i++) {
+    for (int i = 0; i < clicnt; i++) {
         if (FD_ISSET(clientFd[i], &writefds)) {
             if (write(clientFd[i], message, strlen(message)) < 0) {
                 perror("Error sending message to client");
@@ -81,10 +104,11 @@ void broadcast_message(const char *message){
     }
 }
 
-double evaluate_expression(const char *exp) {
+double evaluate_expression(int player_index, int exp_index) {
     double num[4];
     char op[3];
     int num_index = 0, op_index = 0;
+    char *exp = pc[player_index].expression[exp_index];
 
     for (int i = 0; exp[i] != '\0'; i++) {
         if (isdigit(exp[i])) {
@@ -120,7 +144,7 @@ double evaluate_expression(const char *exp) {
                     num[i] = num[i] / (num[i + 1] != 0 ? num[i + 1] : 1);
                     break;
             }
-            for (int j = i + 1; j < num_index - 1; j++) {
+            for (int j = i; j < num_index - 1; j++) {
                 num[j] = num[j + 1];
             }
             num_index--;
@@ -151,7 +175,7 @@ void determine_winners() {
     double best_val[2] = {1e9, 1e9};
     int winner[2] = {-1, -1};
 
-    for (int i = 0; i < player_count; i++) {
+    for (int i = 0; i < clicnt; i++) {
         if (pc[i].stat == FOLD) continue;
         for(int j = 0; j < 2; j++) {
             if (pc[i].stat & (1 << j)) {
@@ -178,13 +202,14 @@ void input_player_combination() {
     struct timeval timeout;
     int max_fd = 0;
 
-    for (int i = 0; i < player_count; i++) {
-        if (pc[i].stat == FOLD) continue;
+    for (int i = 0; i < clicnt; i++) {
+        if (pc[i].stat <= FOLD) continue;
 
         snprintf(buffer, sizeof(buffer), 
         "Player %d, enter your expressions. Enter \"H:\" before the high expression and \"L:\" before the low expression.\nExample: H:R4-5+2*3\n\nOperator priority:\n1. Root (R)\n2. Multiplication (*) and Division (/)\n3. Addition (+) and Subtraction (-)\n",
                  pc[i].id);
         write(clientFd[i], buffer, strlen(buffer));
+        printf("Sent: %s\n", buffer);
 
         int flags = fcntl(clientFd[i], F_GETFL, 0);
         fcntl(clientFd[i], F_SETFL, flags | O_NONBLOCK);
@@ -258,11 +283,10 @@ void input_player_combination() {
 
 void start_game() {
     main_pot[0] = main_pot[1] = 0;
-    Initialize_card();  // Initialize deck of cards with index
-    Initialize_random_array();  // Initialize random array for card shuffling
-    Initialize_player();
-
-    handle_betting_phase();
+    initCard();  
+    initArr();  
+    initClient();
+    betting();
     input_player_combination();
     determine_winners();
 }
