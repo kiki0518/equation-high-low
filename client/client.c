@@ -13,14 +13,16 @@ Receiving game updates from the server.
 
 #define BUFFER_SIZE 1024
 
-struct Card {
+typedef struct {
     char name[40];
     int number;
-};
+}Card;
 
-struct Player {
-    struct Card cards[4];
-};
+
+typedef struct{
+    Card cards[4];
+    char op[5][2];
+}Player;
 
 void input_name(int sockfd);
 void choose_identity(int sockfd);
@@ -28,7 +30,7 @@ void player_distribute(int sockfd);
 void spec_distribute(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
-void receive_card(int sockfd, struct Player* player);
+void receive_card(int sockfd, Player* player);
 void handle_game(int sock_fd);
 
 
@@ -69,6 +71,7 @@ int main(int argc, char *argv[]) {
         if(FD_ISSET(sockfd, &rset)){
             n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
+            //printf("Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
             if(strcmp(recvline, "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ") == 0){
                 printf("%s", recvline);
                 if(Fgets(choice, MAXLINE, stdin) != NULL){
@@ -79,9 +82,12 @@ int main(int argc, char *argv[]) {
                 printf("%s\n", recvline);
                 break;
             }
+            else if(strcmp(recvline, "Invalid input. Please try again.") == 0){
+                printf("%s\n\n", recvline);
+            }
         }
     }
-    struct Player* player;
+    struct Player* player = malloc(sizeof(Player));
     receive_card(sockfd, player);
     // 处理游戏逻辑
     handle_game(sockfd);
@@ -148,7 +154,7 @@ void choose_identity(int sockfd){
 
 void player_distribute(int sockfd){
     int n;
-    char choice[100], sendline[MAXLINE], recvline[MAXLINE];
+    char choice[100], recvline[MAXLINE];
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
@@ -205,9 +211,10 @@ void spec_distribute(int sockfd){
     }
 }
 
-void receive_card(int sockfd, struct Player *player) {
+void receive_card(int sockfd, Player *player) {
     char buffer[BUFFER_SIZE];
     int bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+    //printf("Test: %s", buffer);
     if (bytes_received <= 0) {
         perror("Error receiving data");
         return;
@@ -217,6 +224,7 @@ void receive_card(int sockfd, struct Player *player) {
     // 使用\n作為分隔符，將字串切割成多個部分
     char *line = strtok(buffer, "\n");
     int card_index = 0;
+    int op_index = 0;
 
     // 跳過第一行的 "You have been dealt the following cards:"
     if (line) {
@@ -224,27 +232,48 @@ void receive_card(int sockfd, struct Player *player) {
         line = strtok(NULL, "\n");
     }
 
-    while (line && card_index < 4) {
+    while (line && card_index < 4){
         char card_name[40];
         int card_number;
 
         // 使用 sscanf 解析 "Name Number" 格式的每一行
-        if (sscanf(line, "%s %d", card_name, &card_number) == 2) {
+        if (sscanf(line, "%s %d", card_name, &card_number) == 2){
+            //printf("card_name: %s, size: %zu\n", card_name, sizeof(player->cards[card_index].name));
+            //printf("player: %p, player->cards[%d].name: %p\n", player, card_index, player->cards[card_index].name);
             strncpy(player->cards[card_index].name, card_name, sizeof(player->cards[card_index].name));
+            player->cards[card_index].name[sizeof(player->cards[card_index].name) - 1] = '\0';
             player->cards[card_index].number = card_number;
             card_index++;
         }
         line = strtok(NULL, "\n");
     }
-    printf("Hand received successfully:\n");
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++){
         printf("Card %d: %s %d\n", i + 1, player->cards[i].name, player->cards[i].number);
+    }
+
+    if(line){
+        printf("%s\n", line);
+        line = strtok(NULL, "\n");
+    }
+
+    while (line && op_index < 4){
+        char op;
+
+        // 使用 sscanf 解析 "Name Number" 格式的每一行
+        if (sscanf(line, "%c", &op) == 1){
+            player->op[op_index][0] = op;
+            player->op[op_index][1] = '\0';
+            op_index++;
+        }
+        line = strtok(NULL, "\n");
+    }
+    for(int i = 0; i < op_index; i++){
+        printf("Operator %d: %s\n", i + 1, player->op[i]);
     }
 }
 
 void handle_game(int sock_fd) {
     char buffer[BUFFER_SIZE];
-    char input[BUFFER_SIZE];
 
     while (1) {
         read_from_server(sock_fd, buffer);
