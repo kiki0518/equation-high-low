@@ -1,5 +1,11 @@
 #include "game.h"
 
+struct Card deck_num[44];
+struct Player pc[MAX_PLAYERS];
+char deck_op[5], buffer[BUFFER_SIZE];
+int random_array[44], clientFd[MAX_PLAYERS], main_pot[2];
+int deal_index, player_count;
+
 void Initialize_random_array() {
     for (int i = 0; i < 44; i++)    random_array[i] = i;
 
