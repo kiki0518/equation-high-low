@@ -19,7 +19,6 @@
 int id_idx = 1;
 int ask[100] = {0};
 
-
 typedef struct {
     int player_count;
     int spec_count;
@@ -51,23 +50,33 @@ void letPlay(Room* room, int listenfd) {
     char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
     char *args[MAX_PLAYERS+MAX_SPECS+5];
 
-    strcpy(arguments[0],"./game_logic");
+    strcpy(arguments[0],"./game");
     args[0] = arguments[0];
 
     char buffer[12]; 
     sprintf(buffer, "%d", room->player_count);
     args[1] = buffer;
     
+    int args_index = 2;
     for(int i=0; i<room->player_count; i++){
-        sprintf(arguments[i+1],"%d",room->connfd[i]);
-        args[i+2] = arguments[i+1];
+        sprintf(arguments[args_index],"%d",room->connfd[i]);
+        printf("Room name: %s\n", room->name[i]);
+        printf("%s\n", arguments[args_index]);
+        args[args_index] = arguments[args_index];
+        args_index++;
     }
     for(int i=0; i<room->spec_count; i++){
-        sprintf(arguments[i+1],"%d",room->spec_connfd[i]);
-        args[room->player_count+2+i] = arguments[i+1];
+        sprintf(arguments[args_index],"%d",room->spec_connfd[i]);
+        printf("Spec name: %s\n", room->spec_name[i]);
+        printf("%s\n", arguments[args_index]);
+        args[args_index] = arguments[args_index];
+        args_index++;
     }
-    
-    execv("./game_logic",args);
+
+    for(int i=2; i<room->player_count+room->spec_count+2; i++){
+        printf("%s\n", args[i]);
+    }
+    execv("./game",args);
 
     sleep(5); // Simulate game duration
     snprintf(sendline, sizeof(sendline), "Game in Room %d ends.\n", room->room_id);
