@@ -20,13 +20,14 @@ make
 
 ### **3. Run the Server**
 ```bash
+./game
 ./server
 ```
 
 ### **4. Run a Client**
 Open a new terminal and run:
 ```bash
-./client
+./client <IP Address>
 ```
 
 ---
@@ -36,8 +37,10 @@ Open a new terminal and run:
 HiLoGame/
 ├── server/             # Server-side logic
 │   ├── server.c
-│   ├── game_logic.cpp
-│   ├── game_logic.hpp
+│   ├── game_init.c
+│   ├── game_logic.c
+│   ├── game.h
+
 ├── client/             # Client-side logic
 │   ├── client.c
 │   ├── client_utils.c
