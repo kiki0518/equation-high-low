@@ -19,6 +19,7 @@
 int id_idx = 1;
 int ask[100] = {0};
 
+
 typedef struct {
     int player_count;
     int spec_count;
@@ -121,6 +122,9 @@ void set_timeout(Room* room, int listenfd){
         else if(strcasecmp(response, "no\n") == 0){
             // 房主選擇不開始，繼續等待其他玩家加入
             printf("Room %d: The host chose not to start the game yet.\n", room->room_id);
+        }
+        else{
+            printf(sendline, sizeof(sendline), "Room %d: The host inputs Invalid input.", room->room_id);
         }
     } 
     else{
