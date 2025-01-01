@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include <sys/socket.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
