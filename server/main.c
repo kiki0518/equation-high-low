@@ -5,8 +5,8 @@ int main(int argc, char *argv[]) {
     playercnt = atoi(argv[1]);
     for (int i = 0; i < clicnt; i++) {
         clientFd[i] = atoi(argv[i + 2]);
-        snprintf(sendline, sizeof(sendline), "You are Player %d.\n", i);
-        write(clientFd[i], sendline, strlen(sendline));
+        // snprintf(sendline, sizeof(sendline), "You are Player %d.\n", i + 1);
+        // write(clientFd[i], sendline, strlen(sendline));
     }
     start_game();
     return 0;

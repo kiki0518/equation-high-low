@@ -37,7 +37,6 @@ void initClient() {
         pc[i].id = i + 1;
         pc[i].fd = clientFd[i];
         if(i < playercnt) {
-            snprintf(sendline, sizeof(sendline), "You are Player %d.\n", i + 1);
             pc[i].stat = 0;
             snprintf(pc[i].name, sizeof(pc[i].name), "Player %d", i + 1);
             pc[i].chips = 100;
@@ -63,7 +62,7 @@ void dealCard(int player_index) {
     for (int i = 0; i < 4; i++) {
         int n = arr[deal_index++];
         pc[player_index].card[i] = deck_num[n];
-        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", pc[player_index].card[i].suit, pc[player_index].card[i].number);
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "Card %d: %s %d\n", i + 1, pc[player_index].card[i].suit, pc[player_index].card[i].number);
     }
 
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
@@ -72,7 +71,7 @@ void dealCard(int player_index) {
     for(int i = 0; i < 4; i++) {
         if(n != i)  {
             pc[player_index].op[idx++] = deck_op[i];
-            snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[idx - 1]);
+            snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "Operator %d: %c\n", idx, pc[player_index].op[idx - 1]);
         }
     }
 
@@ -83,7 +82,6 @@ void dealCard(int player_index) {
         pc[player_index].op[3] = 0;   // 0 means no operator
     }
 
-    printf("Player_index: %d\n", player_index);
     if(write(pc[player_index].fd, sendline, strlen(sendline)) < 0) {
         printf("Error sending message to client %d.\n", pc[player_index].id);
         return;

@@ -44,7 +44,7 @@ void initCard();
 void dealCard(int player_index);
 void betting();
 void broadcast_message(const char *message);
-double evaluate_expression(const char *expression);
+double evaluate(int player_index, int exp_index);
 void determine_winners();
 void initClient();
 void input_player_combination();

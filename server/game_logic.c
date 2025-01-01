@@ -16,7 +16,6 @@ void betting() {
             printf("Error reading message from client #%d.\n", pc[i].id);
             return;
         }
-
         recvline[n-1] = '\0';
         printf("Recv: %s\n", recvline);
         sscanf(recvline, "%d\n", &pc[i].stat);
@@ -104,7 +103,7 @@ void broadcast_message(const char *message){
     }
 }
 
-double evaluate_expression(int player_index, int exp_index) {
+double evaluate(int player_index, int exp_index) {
     double num[4];
     char op[3];
     int num_index = 0, op_index = 0;
@@ -179,7 +178,7 @@ void determine_winners() {
         if (pc[i].stat == FOLD) continue;
         for(int j = 0; j < 2; j++) {
             if (pc[i].stat & (1 << j)) {
-                double result = evaluate_expression(pc[i].expression[j]);
+                double result = evaluate(i, j);
                 if(fabs(result - (j == 0 ? 20 : 1)) < fabs(best_val[j] - (j == 0 ? 20 : 1))) {
                     best_val[j] = result;
                     winner[j] = i;
@@ -240,38 +239,7 @@ void input_player_combination() {
             } else {
                 sscanf(buffer, "L:%s", pc[i].expression[1]);
             }
-
-            // Check if the expressions contain player's hand symbols
-            /*bool valid[2] = {true, true};
-            for (int j = 0; j < 4; j++) {
-                for(int k = 0; k < 2; k++) {
-                    if (strstr(pc[i].expression[k], pc[i].card[j].name) == NULL) {
-                        valid[k] = false;
-                        break;
-                    }
-                }
-            }
-
-            if (!valid_high || !valid_low) {
-                printf("Player %d's expressions do not contain their hand symbols or contain invalid symbols.\n", pc[i].id);
-                // Handle invalid input, e.g., prompt again or set default values
-                snprintf(buffer, sizeof(buffer), "Invalid expressions. Please include all your hand symbols and do not use any other symbols.\n");
-                write(clientFd[i], buffer, strlen(buffer));
-                i--; // Retry for the same player
-                continue;
-            }
-
-            // TODO: Handle division by zero, maybe need to tell the player to re-enter the expression
-            for(int j = 0; j < 2; j++) {
-                for(int k = 0; k < 4; k++) {
-                    if(pc[i].expression[j][k] == '/' && pc[i].expression[j][k + 1] == '0') {
-                        snprintf(buffer, sizeof(buffer), "Invalid expression. Cannot take division by zero.\n");
-                        write(clientFd[i], buffer, strlen(buffer));
-                        i--;
-                        break;
-                    }
-            }*/
-            
+            // Check if the expression is valid
         } else if (activity == 0) {
             printf("Player %d timed out.\n", pc[i].id);
             pc[i].stat = FOLD;
