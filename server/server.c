@@ -46,10 +46,6 @@ void sig_chld(int signo){
 
 void letPlay(Room* room, int listenfd) {
     char sendline[MAXLINE];
-    snprintf(sendline, sizeof(sendline), "Game in Room %d starts now!\n", room->room_id);
-    for (int i=0; i < room->player_count; ++i) {
-        Writen(room->connfd[i], sendline, strlen(sendline));
-    }
     // Implement the game logic here...
     // 參數傳入
     char arguments[MAX_PLAYERS+MAX_SPECS+2][300];
@@ -186,10 +182,6 @@ int assignToSpecificRoom(int connfd, char* player_name, int listenfd) {
         // 如果玩家数量达到起始条件，通知房主是否开始游戏
         if (rooms[room_index].player_count >= MIN_START_PLAYERS){
             ask[room_index] = 1;
-            //snprintf(sendline, sizeof(sendline), "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ");
-            //Writen(rooms[room_index].connfd[0], sendline, strlen(sendline));
-            //sleep(2);
-            //set_timeout(&rooms[room_index], listenfd);
         }
         return 1; // 表示成功加入特定房间
     } 
@@ -217,15 +209,10 @@ int assignToRoom(int connfd, char* name, int listenfd) {
             // Check if game should start
             if (rooms[i].player_count >= MIN_START_PLAYERS){
                 ask[i] = 1;
-                //snprintf(sendline, sizeof(sendline), "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ");
-                //Writen(rooms[i].connfd[0], sendline, strlen(sendline));
-                //sleep(2);
-                //set_timeout(&rooms[i], listenfd);
             } 
             else if(rooms[i].player_count == ROOM_CAPACITY) {
                 ask[i] = 1;
                 rooms[i].close = 1;
-                //letPlay(&rooms[i], listenfd);
             }
 
             return rooms[i].room_id;
@@ -391,10 +378,10 @@ int main(){
                         Writen(connfd[total_id], sendline, strlen(sendline));
 
                         n = Read(connfd[total_id], input, sizeof(input) - 1);
-                        input[n-1] = '\0';
+                        input[n] = '\0';
                         printf("Recv: %s\n", input);
 
-                        if (strcasecmp(input, "yes") == 0){
+                        if (strcasecmp(input, "yes\n") == 0){
                             // 如果玩家想加入特定房间，调用函数处理
                             if(assignToSpecificRoom(connfd[total_id], name[total_id], listenfd) > 0){
                                 printf("Send: Yes Success!\n");
@@ -405,7 +392,7 @@ int main(){
                             }
                             sleep(2);  
                         }
-                        else if(strcasecmp(input, "no") == 0){
+                        else if(strcasecmp(input, "no\n") == 0){
                             // 如果玩家不想加入特定房间，直接随机分配
                             if(assignToRoom(connfd[total_id], name[total_id], listenfd) > 0){
                                 printf("Send: No Success!\n");
@@ -416,6 +403,10 @@ int main(){
                             }
                             sleep(2);
                         }
+                        else{
+                            snprintf(sendline, sizeof(sendline), "Invalid input. Please try again.\n");
+                            Writen(connfd[total_id], sendline, strlen(sendline));
+                        }
                     }
                 }
             }   
@@ -424,7 +415,7 @@ int main(){
             if(!ask[i]) continue;
             if(ask[i] == 1 && rooms[i].player_count == MAX_PLAYERS){
                 snprintf(sendline, sizeof(sendline), "Let start the game.");
-                for(int j=0; i<rooms[i].player_count; j++){
+                for(int j=0; j<rooms[i].player_count; j++){
                     Writen(rooms[i].connfd[j], sendline, strlen(sendline));
                 }
                 pid_t pid = fork();
@@ -437,7 +428,6 @@ int main(){
             else if(ask[i] == 1 && rooms[i].player_count >= MIN_START_PLAYERS){
                 snprintf(sendline, sizeof(sendline), "The minimum number of players has been reached. Do you want to start the game now? (yes/no): ");
                 Writen(rooms[i].connfd[0], sendline, strlen(sendline));
-                   
                 ask[i] = 0;
                 sleep(5);
                 set_timeout(&rooms[i], listenfd);
