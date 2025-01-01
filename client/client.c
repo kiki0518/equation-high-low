@@ -13,12 +13,22 @@ Receiving game updates from the server.
 
 #define BUFFER_SIZE 1024
 
+struct Card {
+    char name[40];
+    int number;
+};
+
+struct Player {
+    struct Card cards[4];
+};
+
 void input_name(int sockfd);
 void choose_identity(int sockfd);
 void player_distribute(int sockfd);
 void spec_distribute(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
+void receive_card(int sockfd, struct Player* player);
 void handle_game(int sock_fd);
 
 
@@ -65,12 +75,14 @@ int main(int argc, char *argv[]) {
                     Writen(sockfd, choice, strlen(recvline));
                 }
             }
-            else if(strcmp(recvline, "Let start the game.") == 0){
+            else if(strcmp(recvline, "\nLet start the game.") == 0){
                 printf("%s\n", recvline);
                 break;
             }
         }
     }
+    struct Player* player;
+    receive_card(sockfd, player);
     // 处理游戏逻辑
     handle_game(sockfd);
     
@@ -140,7 +152,7 @@ void player_distribute(int sockfd){
     while(1){
         n = Read(sockfd, recvline, MAXLINE);
         recvline[n] = '\0';
-        printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+        //printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
         if(strcmp(recvline, "Do you want to join a specific room? (yes/no): ") == 0){
             printf("==================================================\n");
@@ -193,27 +205,51 @@ void spec_distribute(int sockfd){
     }
 }
 
+void receive_card(int sockfd, struct Player *player) {
+    char buffer[BUFFER_SIZE];
+    int bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received <= 0) {
+        perror("Error receiving data");
+        return;
+    }
+    buffer[bytes_received] = '\0';
+
+    // 使用\n作為分隔符，將字串切割成多個部分
+    char *line = strtok(buffer, "\n");
+    int card_index = 0;
+
+    // 跳過第一行的 "You have been dealt the following cards:"
+    if (line) {
+        printf("%s\n", line);
+        line = strtok(NULL, "\n");
+    }
+
+    while (line && card_index < 4) {
+        char card_name[40];
+        int card_number;
+
+        // 使用 sscanf 解析 "Name Number" 格式的每一行
+        if (sscanf(line, "%s %d", card_name, &card_number) == 2) {
+            strncpy(player->cards[card_index].name, card_name, sizeof(player->cards[card_index].name));
+            player->cards[card_index].number = card_number;
+            card_index++;
+        }
+        line = strtok(NULL, "\n");
+    }
+    printf("Hand received successfully:\n");
+    for (int i = 0; i < 4; i++) {
+        printf("Card %d: %s %d\n", i + 1, player->cards[i].name, player->cards[i].number);
+    }
+}
+
 void handle_game(int sock_fd) {
     char buffer[BUFFER_SIZE];
     char input[BUFFER_SIZE];
 
     while (1) {
-        // 从服务端读取消息
         read_from_server(sock_fd, buffer);
-        printf("Server: %s\n", buffer);
 
-        if (strstr(buffer, "你的数学表达式是:") != NULL) {
-            printf("Input your guess (or type 'fold' to quit): ");
-            Fgets(input, BUFFER_SIZE, stdin);
-            send_to_server(sock_fd, input);
-        } else if (strstr(buffer, "筹码耗尽") != NULL || strstr(buffer, "游戏结束") != NULL) {
-            printf("Game Over! Disconnecting...\n");
-            break;
-        } else {
-            printf("Input your response: ");
-            Fgets(input, BUFFER_SIZE, stdin);
-            send_to_server(sock_fd, input);
-        }
+        
     }
 }
 
