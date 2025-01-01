@@ -85,12 +85,12 @@ void deal_cards(int player_index) {
         pc[player_index].card[i] = deck_num[n];
         snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", deck_num[n].name, deck_num[n].number);
     }
-    Writen(clientFd[player_index], sendline, strlen(sendline));
 
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
     for (int i = 0; i < 3; i++) {
         pc[player_index].op[i] = deck_op[rand() % 4];
-        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c ", pc[player_index].op[i]);
+        // update space -> \n, 這樣可以用strtok
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[i]);
     }
 
     if (rand() % 5 == 0) {  // 20% chance to get a root operator
@@ -100,7 +100,7 @@ void deal_cards(int player_index) {
         pc[player_index].op[3] = 0;   // 0 means no operator
     }
     
-     // Use select to send the dealt cards and operators to the player
+    // Use select to send the dealt cards and operators to the player
     fd_set writefds;
     FD_ZERO(&writefds);
     FD_SET(clientFd[player_index], &writefds);
@@ -359,7 +359,6 @@ int main(int argc, char *argv[]) {
     /*for (int i = 0; i < argc - 1; i++) {
         clientFd[i] = atoi(argv[i + 1]);
     }*/
-   char sendline[100];
    player_count = atoi(argv[1]);
    for (int i = 0; i < player_count; i++) {
         clientFd[i] = atoi(argv[i + 2]);
