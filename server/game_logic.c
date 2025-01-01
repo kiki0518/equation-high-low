@@ -85,6 +85,7 @@ void deal_cards(int player_index) {
         pc[player_index].card[i] = deck_num[n];
         snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", deck_num[n].name, deck_num[n].number);
     }
+    Writen(clientFd[player_index], sendline, strlen(sendline));
 
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
     for (int i = 0; i < 3; i++) {
@@ -362,8 +363,6 @@ int main(int argc, char *argv[]) {
    player_count = atoi(argv[1]);
    for (int i = 0; i < player_count; i++) {
         clientFd[i] = atoi(argv[i + 2]);
-        snprintf(sendline, sizeof(sendline), "Test parameter.");
-        Writen(clientFd[i], sendline, strlen(sendline));
     }
     //player_count = argc - 1;
     start_game();
