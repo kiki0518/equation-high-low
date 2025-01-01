@@ -200,7 +200,7 @@ int assignToSpecificRoom(int connfd, char* player_name, int listenfd) {
 
 int assignToRoom(int connfd, char* name, int listenfd) {
     for (int i=0; i<room_count; i++) {
-        if (rooms[i].player_count < ROOM_CAPACITY) {
+        if (rooms[i].player_count < ROOM_CAPACITY && rooms[i].close == 0){
             int player_id = rooms[i].player_count;
             rooms[i].connfd[player_id] = connfd;
             strcpy(rooms[i].name[player_id], name);
