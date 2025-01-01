@@ -29,7 +29,7 @@ struct Card {
 
 struct Player {
     int id, chips, bet[2], stat, fd;  
-    char name[40], op[4], expression[2][BUFFER_SIZE];
+    char name[40], op[4], exp[2][BUFFER_SIZE];
     struct Card card[4];
 };
 
@@ -37,18 +37,17 @@ extern struct Card deck_num[44];
 extern struct Player pc[MAX_PLAYERS];
 extern char deck_op[5], sendline[BUFFER_SIZE], recvline[BUFFER_SIZE], buffer[BUFFER_SIZE];
 extern int arr[44], clientFd[MAX_PLAYERS], main_pot[2];
-extern int deal_index, clicnt, playercnt, n;
+extern int deal_index, clicnt, playercnt, n, end_game;
 
 void initArr();
 void initCard();
 void dealCard(int player_index);
 void betting();
-void broadcast_message(const char *message);
+void broadcast(const char *message);
 double evaluate(int player_index, int exp_index);
-void determine_winners();
+void findWinner();
 void initClient();
-void input_player_combination();
+void collectAns();
 void start_game();
-double eval(char exp[]);
 
 #endif 

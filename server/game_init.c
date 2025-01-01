@@ -4,7 +4,7 @@ struct Card deck_num[44];
 struct Player pc[MAX_PLAYERS];
 char sendline[BUFFER_SIZE], recvline[BUFFER_SIZE], buffer[BUFFER_SIZE], deck_op[5] = {'+', '-', '*', '/', 'R'};
 int arr[44], clientFd[MAX_PLAYERS], main_pot[2];
-int deal_index, clicnt, playercnt, n;
+int deal_index, clicnt, playercnt, n, end_game = 3;
 
 void initArr() {
     for (int i = 0; i < 44; i++)    arr[i] = i;
@@ -42,7 +42,7 @@ void initClient() {
             pc[i].chips = 100;
             pc[i].bet[0] = pc[i].bet[1] = 0;
             memset(pc[i].name, 0, sizeof(pc[i].name));
-            memset(pc[i].expression, 0, sizeof(pc[i].expression));
+            memset(pc[i].exp, 0, sizeof(pc[i].exp));
             dealCard(i);
             printf("Player %d initialized.\n", i + 1);
         } else {
