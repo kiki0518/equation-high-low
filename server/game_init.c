@@ -31,8 +31,7 @@ void Initialize_player() {
         pc[i].stat = 0;
         pc[i].fd = clientFd[i];
         memset(pc[i].name, 0, sizeof(pc[i].name));
-        memset(pc[i].expression_high, 0, sizeof(pc[i].expression_high));
-        memset(pc[i].expression_low, 0, sizeof(pc[i].expression_low));
+        memset(pc[i].expression, 0, sizeof(pc[i].expression));
         deal_cards(i);
     }
 }
@@ -43,7 +42,7 @@ void deal_cards(int player_index) {
 
     // Deal 4 cards and 3 operators to each player
     for (int i = 0; i < 4; i++) {
-        int n = random_array[dealIdx++];
+        int n = random_array[deal_index++];
         pc[player_index].card[i] = deck_num[n];
         snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%s %d\n", deck_num[n].name, deck_num[n].number);
     }
@@ -51,7 +50,7 @@ void deal_cards(int player_index) {
     snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "You have been dealt the following operators:\n");
     for (int i = 0; i < 3; i++) {
         pc[player_index].op[i] = deck_op[rand() % 4];
-        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c ", pc[player_index].op[i]);
+        snprintf(sendline + strlen(sendline), sizeof(sendline) - strlen(sendline), "%c\n", pc[player_index].op[i]);
     }
 
     if (rand() % 5 == 0) {  // 20% chance to get a root operator

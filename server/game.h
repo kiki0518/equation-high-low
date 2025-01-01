@@ -34,16 +34,16 @@ struct Player {
 extern struct Card deck_num[44];
 extern struct Player pc[MAX_PLAYERS];
 extern char deck_op[5], buffer[BUFFER_SIZE];
-extern int random_array[44], clientFd[MAX_PLAYERS];
-extern int dealIdx, player_count;
+extern int random_array[44], clientFd[MAX_PLAYERS], main_pot[2];
+extern int deal_index, player_count;
 
 void Initialize_random_array();
 void Initialize_card();
 void deal_cards(int player_index);
-void handle_betting_phase(int *main_pot);
+void handle_betting_phase();
 void broadcast_message(const char *message);
 double evaluate_expression(const char *expression);
-void determine_winners(int *main_pot);
+void determine_winners();
 void Initialize_player();
 void input_player_combination();
 void start_game();
