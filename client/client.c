@@ -31,7 +31,8 @@ void spec_distribute(int sockfd);
 void read_from_server(int sock_fd, char *buffer);
 void send_to_server(int sock_fd, const char *message);
 void receive_card(int sockfd, Player* player);
-void handle_bet(int sock_fd);
+void handle_bet(int sockfd);
+void input_player_combination(int sockfd, Player* player);
 
 
 int main(int argc, char *argv[]) {
@@ -273,19 +274,99 @@ void receive_card(int sockfd, Player *player) {
     }
 }
 
-void handle_bet(int sock_fd) {
-    char buffer[BUFFER_SIZE];
+void handle_bet(int sockfd) {
+    int n;
+    char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
 
     while (1) {
-        read_from_server(sock_fd, buffer);
+        read_from_server(sockfd, recvline);
+        printf("%s", recvline);
+        // get player's state
+        while(Fgets(choice, MAXLINE, stdin) != NULL){
+            if(strcmp(choice, "0\n") == 0 || strcmp(choice, "1\n") == 0 ||
+               strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
+                Writen(sockfd, choice, strlen(choice));
+                break;
+            }
+            else printf("Invalid input. Please try again (0: fold, 1: bet high 2: bet low 3: bet both high and low): ");
+        }
 
-        
+        if(strcmp(choice, "0\n") == 0){
+            n = Read(sockfd, sizeof(recvline), MAXLINE);
+            recvline[n] = '\0';
+            printf("%s", recvline);
+        }
+        if(strcmp(choice, "1\n") == 0 || strcmp(choice, "3\n") == 0){
+            n = Read(sockfd, sizeof(recvline), MAXLINE);
+            recvline[n] = '\0';
+            printf("%s", recvline);
+            if(Fgets(sendline, MAXLINE, stdin) != NULL){
+                Writen(sockfd, choice, strlen(choice));
+            }
+            n = Read(sockfd, sizeof(response), MAXLINE);
+            response[n] = '\0';
+            if(strncmp(response, "Invalid", 7) == 0){
+                printf("%s", response);
+                continue;
+                // 再回到while開頭再來一次
+            }
+            else if(strncmp(response, "You bet", 7) == 0){
+                printf("%s", response);
+            }
+            }
+        }
+        if(strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
+            n = Read(sockfd, sizeof(recvline), MAXLINE);
+            recvline[n] = '\0';
+            if(strcmp(recvline, "Enter your bet for low: ") == 0){
+                printf("%s", recvline);
+                if(Fgets(sendline, MAXLINE, stdin) != NULL){
+                    Writen(sockfd, choice, strlen(choice));
+                }
+                n = Read(sockfd, sizeof(response), MAXLINE);
+                response[n] = '\0';
+                if(strncmp(response, "Invalid", 7) == 0){
+                    printf("%s", response);
+                    continue;
+                    // 再回到while開頭再來一次
+                }
+                else if(strncmp(response, "You bet", 7) == 0){
+                    printf("%s", response);
+                }
+            }
+        }
     }
 }
 
+void input_player_combination(int sockfd, Player* player){
+    int n;
+    char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
+
+    while (1){
+        read_from_server(sockfd, recvline);
+        printf("%s", recvline);
+        // get player's state
+        if(Fgets(choice, MAXLINE, stdin) != NULL){
+            if(strncmp(choice[0], "H", 1) == 0 || strncmp(choice[0], "L", 1) == 0){
+                Writen(sockfd, choice, strlen(choice));
+                break;
+            }
+            else{
+                n = Read(sockfd, recvline, MAXLINE);
+                recvline[n] = '\0';
+                printf("%s", recvline);
+                continue;
+            }
+        }
+    }
+}
+
+
+
 void read_from_server(int sock_fd, char *buffer) {
     memset(buffer, 0, BUFFER_SIZE);
-    int bytes_read = read(sock_fd, buffer, BUFFER_SIZE - 1);
+    int bytes_read = Read(sock_fd, buffer, BUFFER_SIZE - 1);
+    buffer[bytes_read] = '\0';
     if (bytes_read <= 0) {
         perror("Failed to read from server");
         close(sock_fd);
