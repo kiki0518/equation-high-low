@@ -98,8 +98,6 @@ int main(int argc, char *argv[]) {
     recvline[n] = '\0';
     printf("%s", recvline);
 
-    
-
     close(sockfd);
     return 0;
 }
@@ -219,8 +217,14 @@ void spec_distribute(int sockfd){
 }
 
 void receive_card(int sockfd, Player *player) {
-    char buffer[BUFFER_SIZE];
-    int bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+    int n;
+    char recvline[BUFFER_SIZE];
+
+    n = Read(sockfd, recvline, MAXLINE);
+    recvline[n] = '\0';
+    printf("%s", recvline);
+
+    /*int bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
     //printf("Test: %s", buffer);
     if (bytes_received <= 0) {
         perror("Error receiving data");
@@ -284,28 +288,33 @@ void handle_bet(int sockfd) {
     int n;
     char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[10], response[MAXLINE];
 
-    while (1) {
+    while (1){
         read_from_server(sockfd, recvline);
         printf("%s", recvline);
         // get player's state
-        if(Fgets(choice, MAXLINE, stdin) != NULL){
+        if (Fgets(choice, sizeof(choice), stdin) != NULL) {
+            // 确保输入内容以 '\0' 结尾
+            choice[strcspn(choice, "\n")] = '\0'; // 将换行符替换为 '\0'
             Writen(sockfd, choice, strlen(choice));
-            //else printf("Invalid input. Please try again (0: fold, 1: bet high 2: bet low 3: bet both high and low): ");
+        } else {
+            // 如果输入无效，初始化为空字符串
+            choice[0] = '\0';
         }
-
-        if(strcmp(choice, "0\n") == 0){
-            n = Read(sockfd, sizeof(recvline), MAXLINE);
+       printf("Distribute Debug: recvline = '%s', length = %zu\n", choice, strlen(choice));
+        if(strcmp(choice, "0") == 0){
+            n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             printf("%s", recvline);
         }
-        if(strcmp(choice, "1\n") == 0 || strcmp(choice, "3\n") == 0){
-            n = Read(sockfd, sizeof(recvline), MAXLINE);
+        if(strcmp(choice, "1") == 0 || strcmp(choice, "3") == 0){
+            printf("Are you in?\n");
+            n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             printf("%s", recvline);
             if(Fgets(sendline, MAXLINE, stdin) != NULL){
                 Writen(sockfd, choice, strlen(choice));
             }
-            n = Read(sockfd, sizeof(response), MAXLINE);
+            n = Read(sockfd, response, MAXLINE);
             response[n] = '\0';
             if(strncmp(response, "Invalid", 7) == 0){
                 printf("%s", response);
@@ -314,11 +323,12 @@ void handle_bet(int sockfd) {
             }
             else if(strncmp(response, "You bet", 7) == 0){
                 printf("%s", response);
+                break;
             }
         }
 
-        if(strcmp(choice, "2\n") == 0 || strcmp(choice, "3\n") == 0){
-            n = Read(sockfd, sizeof(recvline), MAXLINE);
+        if(strcmp(choice, "2") == 0 || strcmp(choice, "3") == 0){
+            n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             /*if(strcmp(recvline, "Enter your bet for low: ") == 0){
                 printf("%s", recvline);
@@ -339,7 +349,7 @@ void handle_bet(int sockfd) {
             if(Fgets(sendline, MAXLINE, stdin) != NULL){
                 Writen(sockfd, choice, strlen(choice));
             }
-            n = Read(sockfd, sizeof(response), MAXLINE);
+            n = Read(sockfd, response, MAXLINE);
             response[n] = '\0';
             if(strncmp(response, "Invalid", 7) == 0){
                 printf("%s", response);
@@ -348,6 +358,7 @@ void handle_bet(int sockfd) {
             }
             else if(strncmp(response, "You bet", 7) == 0){
                 printf("%s", response);
+                break;
             }
         }
     }
