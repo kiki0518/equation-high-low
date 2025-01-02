@@ -47,7 +47,7 @@ void betting() {
 
                 n = Read(clientFd[i], recvline, sizeof(recvline));
                 recvline[n] = '\0';
-                printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+                //printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
 
                 if(strcmp(recvline, "I get bet messege.") == 0){
                     if((n = read(clientFd[i], recvline, sizeof(recvline))) < 0) {
@@ -117,7 +117,7 @@ void broadcast_message(const char *message){
 
 double evaluate(int player_index, int exp_index) {
     double num[4];
-    char op[3];
+    char op[4];
     int num_index = 0, op_index = 0;
     char *exp = pc[player_index].expression[exp_index];
 
@@ -155,7 +155,7 @@ double evaluate(int player_index, int exp_index) {
                     num[i] = num[i] / (num[i + 1] != 0 ? num[i + 1] : 1);
                     break;
             }
-            for (int j = i; j < num_index - 1; j++) {
+            for (int j = i+1; j < num_index - 1; j++) {
                 num[j] = num[j + 1];
             }
             num_index--;
