@@ -12,13 +12,19 @@ void betting() {
         }
         printf("Send: %s\n", sendline);
 
-        if(n = read(clientFd[i], recvline, sizeof(recvline)) < 0) {
-            printf("Error reading message from client #%d.\n", pc[i].id);
-            return;
-        }
+        n = Read(clientFd[i], recvline, sizeof(recvline));
         recvline[n] = '\0';
-        printf("Recv: %s\n", recvline);
-        sscanf(recvline, "%d\n", &pc[i].stat);
+        //printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+
+        if(strcmp(recvline, "I get.") == 0){
+            if((n = read(clientFd[i], recvline, sizeof(recvline))) < 0) {
+                printf("Error reading message from client #%d.\n", pc[i].id);
+                return;
+            }
+            recvline[n] = '\0';
+            printf("Recv: %s\n", recvline);
+            sscanf(recvline, "%d\n", &pc[i].stat);
+        }
 
         if (pc[i].stat == FOLD) {
             snprintf(sendline, sizeof(sendline), "You have folded.\n");
@@ -38,14 +44,20 @@ void betting() {
                     return;
                 }
                 printf("Send: %s\n", sendline);
-                
-                if(n = read(clientFd[i], recvline, sizeof(recvline)) < 0) {
-                    printf("Error reading message from client #%d.\n", pc[i].id);
-                    return;
-                }
+
+                n = Read(clientFd[i], recvline, sizeof(recvline));
                 recvline[n] = '\0';
-                printf("Recv: %s\n", recvline);
-                sscanf(recvline, "%d\n", &pc[i].bet[j]);
+                printf("Distribute Debug: recvline = '%s', length = %zu\n", recvline, strlen(recvline));
+
+                if(strcmp(recvline, "I get bet messege.") == 0){
+                    if((n = read(clientFd[i], recvline, sizeof(recvline))) < 0) {
+                        printf("Error reading message from client #%d.\n", pc[i].id);
+                        return;
+                    }
+                    recvline[n] = '\0';
+                    printf("Recv: %s\n", recvline);
+                    sscanf(recvline, "%d\n", &pc[i].bet[j]);
+                }
                 
                 if(!pc[i].bet[j] || (pc[i].bet[j] < max_bet[j] && pc[i].bet[j] != pc[i].chips)) {
                     snprintf(sendline, sizeof(sendline), "Invalid bet! You must bet more than or equal to %d or go All-In.\n", max_bet[j]);
@@ -210,8 +222,8 @@ void input_player_combination() {
         write(clientFd[i], buffer, strlen(buffer));
         printf("Sent: %s\n", buffer);
 
-        int flags = fcntl(clientFd[i], F_GETFL, 0);
-        fcntl(clientFd[i], F_SETFL, flags | O_NONBLOCK);
+        //int flags = fcntl(clientFd[i], F_GETFL, 0);
+        //fcntl(clientFd[i], F_SETFL, flags | O_NONBLOCK);
 
         FD_ZERO(&read_fds);
         FD_SET(clientFd[i], &read_fds);
