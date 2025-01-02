@@ -288,8 +288,14 @@ void handle_bet(int sockfd) {
     int n;
     char sendline[MAXLINE], recvline[BUFFER_SIZE], choice[20], response[MAXLINE];
 
-        read_from_server(sockfd, recvline);
+        //read_from_server(sockfd, recvline);
+        n = Read(sockfd, recvline, MAXLINE);
+        recvline[n] = '\0';
         printf("%s", recvline);
+
+        snprintf(sendline, sizeof(sendline), "I get.");
+        Writen(sockfd, sendline, strlen(sendline));
+
         // get player's state
         if (Fgets(choice, sizeof(choice), stdin) != NULL) {
             // 确保输入内容以 '\0' 结尾
@@ -309,6 +315,10 @@ void handle_bet(int sockfd) {
             n = Read(sockfd, recvline, MAXLINE);
             recvline[n] = '\0';
             printf("%s", recvline);
+
+            snprintf(sendline, sizeof(sendline), "I get bet messege.");
+            Writen(sockfd, sendline, strlen(sendline));
+
             if(Fgets(sendline, MAXLINE, stdin) != NULL){
                 Writen(sockfd, sendline, strlen(sendline));
             }
